@@ -43,7 +43,7 @@ export default function StudentDashboard() {
           className="text-xl font-bold text-blue-700 cursor-pointer"
           onClick={() => navigate("/student")}
         >
-          🎓 STEM-Play
+          STEM-Play
         </h1>
 
         {/* Profile Dropdown */}
@@ -91,7 +91,7 @@ export default function StudentDashboard() {
       <main className="max-w-5xl mx-auto p-6 space-y-8">
         {/* Quizzes */}
         <section className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-blue-700 mb-3">📘 Quizzes</h2>
+          <h2 className="text-xl font-bold text-blue-700 mb-3">Quizzes</h2>
           <p className="text-sm text-gray-600">Your available quizzes will appear here.</p>
           <button
             // onClick={() => navigate("/quiz")}
@@ -103,7 +103,7 @@ export default function StudentDashboard() {
 
         {/* Games */}
         <section className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-green-700 mb-3">🎮 Games</h2>
+          <h2 className="text-xl font-bold text-green-700 mb-3">Games</h2>
           <p className="text-sm text-gray-600">Play fun STEM-related educational games here.</p>
           <button
             // onClick={() => navigate("/games")}
@@ -115,7 +115,7 @@ export default function StudentDashboard() {
 
         {/* Leaderboard */}
         <section className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-bold text-yellow-700 mb-3">🏆 Leaderboard</h2>
+          <h2 className="text-xl font-bold text-yellow-700 mb-3">Leaderboard</h2>
           <div className="bg-gray-50 rounded-lg p-4">
             {leaderboard.length === 0 ? (
               <p className="text-gray-500">No scores yet. Be the first!</p>
