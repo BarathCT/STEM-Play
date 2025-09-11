@@ -4,7 +4,11 @@ const { Schema } = mongoose;
 
 const UserSchema = new Schema(
   {
-    name: { type: String, trim: true, required: true },
+    name: { 
+      type: String,
+      trim: true,
+      required: true
+    },
 
     // For admin/teacher login
     email: {
@@ -15,6 +19,10 @@ const UserSchema = new Schema(
       sparse: true, // allow multiple docs without email
       index: true,
     },
+
+    //private String email = "barath@gmail.com";
+    //email.toLowerCase();
+    //email.trim();
 
     // For student login (parent logs in with this)
     parentEmail: {

@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 // Routes
 import adminRoutes from './src/controller/admin.js';
 import authRoutes from './src/controller/auth.js';
+import teacherRoutes from './src/controller/teacher.js';
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -63,6 +64,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/teacher', teacherRoutes);
 
 // 404 handler
 app.use((req, res, next) => {
