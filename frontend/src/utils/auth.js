@@ -22,6 +22,7 @@ export function decodeJwt(token) {
   }
 }
 
+
 export function getRole() {
   const token = getToken();
   const payload = decodeJwt(token);
