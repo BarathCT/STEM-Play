@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import UsersTable from '../components/UserManagement/UsersTable';
+import UsersTable from '../components/UserManagement/UserTable/UsersTable';
 import UserFiltersCard from '../components/UserManagement/UserFiltersCard';
 import AddUserModal from '../components/UserManagement/AddUserModal';
+import EditUserDialog from '../components/UserManagement/UserTable/EditUserDialog';
+import DeleteConfirmDialog from '../components/UserManagement/UserTable/DeleteConfirmDialog';
 import { Plus } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -13,7 +15,7 @@ async function request(path, options = {}) {
   return data;
 }
 
-export default function TeacherStudentManagement() {
+export default function StudentManagement() {
   const [students, setStudents] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -35,6 +37,13 @@ export default function TeacherStudentManagement() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [q]);
 
   const filtered = useMemo(() => students, [students]); // server filters by q
+
+  const deleteStudent = async () => {
+    if (!deleting) return;
+    await request(`/teacher/students/${deleting.id}`, { method: 'DELETE' });
+    setDeleting(null);
+    load();
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4">
@@ -81,8 +90,22 @@ export default function TeacherStudentManagement() {
         allowedTypes={['student']}
       />
 
-      {/* Edit uses your existing edit modal in the teacher page or you can reuse admin edit with teacher endpoints if you refactor it similarly */}
-      {/* For brevity, wire your existing edit/delete flows here using /teacher/students/:id */}
+      {/* Shared Modals */}
+      <EditUserDialog
+        isOpen={!!editing}
+        onClose={() => setEditing(null)}
+        onSaved={load}
+        user={editing}
+        mode="teacher"      // hides class/section/teacher changes for teacher view
+        request={request}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={deleteStudent}
+        user={deleting}
+      />
     </div>
   );
 }

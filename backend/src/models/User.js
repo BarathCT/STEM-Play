@@ -20,10 +20,6 @@ const UserSchema = new Schema(
       index: true,
     },
 
-    //private String email = "barath@gmail.com";
-    //email.toLowerCase();
-    //email.trim();
-
     // For student login (parent logs in with this)
     parentEmail: {
       type: String,
@@ -63,6 +59,12 @@ const UserSchema = new Schema(
     // Convenience pointers
     assignedTeacherId: { type: Schema.Types.ObjectId, ref: 'User' },
     assignedClassId: { type: Schema.Types.ObjectId, ref: 'Class' },
+
+    // Password reset (OTP) fields
+    resetOtpHash: { type: String, default: null },
+    resetOtpExpires: { type: Date, default: null },
+    resetOtpAttempts: { type: Number, default: 0 },
+    resetOtpLastSentAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
