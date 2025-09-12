@@ -5,19 +5,14 @@ import {
   School,
   CheckCircle2,
   AlertCircle,
-  Save,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
   UserPlus,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 
-import UsersTable from '../../components/UserManagement/UsersTable';
-import UserFiltersCard from '../../components/UserManagement/UserFiltersCard';
-import AddUserModal from '../../components/UserManagement/AddUserModal';
+import UsersTable from '@/pages/components/UserManagement/UserTable/UsersTable';
+import UserFiltersCard from '@/pages/components/UserManagement/UserFiltersCard';
+import AddUserModal from '@/pages/components/UserManagement/AddUserModal';
+import EditUserDialog from '../../components/UserManagement/UserTable/EditUserDialog';
+import DeleteConfirmDialog from '../../components/UserManagement/UserTable/DeleteConfirmDialog';
 
 // Lightweight HTTP helper
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -90,301 +85,18 @@ function TabButton({ active, onClick, icon: Icon, label, count }) {
 
 /**
  * Modern/hidden scrollbar utilities injected for this page.
- * - Apply 'modern-scrollbar' to any scrollable container to get a thin, rounded scrollbar.
- * - Apply 'no-scrollbar' to hide scrollbars entirely.
  */
 function ScrollbarStyles() {
   return (
     <style>{`
-      /* Firefox */
-      .modern-scrollbar {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(100,116,139,.6) transparent; /* slate-500 */
-      }
-      .no-scrollbar {
-        scrollbar-width: none;
-      }
-      /* WebKit (Chrome, Edge, Safari) */
-      .modern-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      .modern-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .modern-scrollbar::-webkit-scrollbar-thumb {
-        background-color: rgba(100,116,139,.6); /* slate-500 */
-        border-radius: 9999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-      }
-      .modern-scrollbar:hover::-webkit-scrollbar-thumb {
-        background-color: rgba(71,85,105,.8); /* slate-600 */
-      }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
+      .modern-scrollbar{scrollbar-width:thin;scrollbar-color:rgba(100,116,139,.6) transparent}
+      .no-scrollbar{scrollbar-width:none}
+      .modern-scrollbar::-webkit-scrollbar{width:8px;height:8px}
+      .modern-scrollbar::-webkit-scrollbar-track{background:transparent}
+      .modern-scrollbar::-webkit-scrollbar-thumb{background-color:rgba(100,116,139,.6);border-radius:9999px;border:2px solid transparent;background-clip:padding-box}
+      .modern-scrollbar:hover::-webkit-scrollbar-thumb{background-color:rgba(71,85,105,.8)}
+      .no-scrollbar::-webkit-scrollbar{display:none}
     `}</style>
-  );
-}
-
-function DeleteConfirmModal({ user, isOpen, onClose, onConfirm }) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Strong blur backdrop (no black overlay). Click outside to close. */}
-      <button
-        type="button"
-        aria-label="Close modal"
-        onClick={onClose}
-        className="absolute inset-0 w-full h-full bg-transparent backdrop-blur-xs backdrop-brightness-75 backdrop-saturate-150"
-      />
-      <div
-        className="relative bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <Trash2 className="w-5 h-5 text-red-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Delete {user?.role}</h3>
-            <p className="text-sm text-gray-500">This action cannot be undone</p>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <p className="text-gray-700">
-            Are you sure you want to delete <strong>{user?.name}</strong>?
-          </p>
-          <p className="text-sm text-gray-500 mt-1">Email: {user?.email || user?.parentEmail}</p>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Delete
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EditUserModal({ user, isOpen, onClose, onSave }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    parentEmail: '',
-    staffId: '',
-    registerId: '',
-    currentPassword: '',
-    newPassword: '',
-  });
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (user && isOpen) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        parentEmail: user.parentEmail || '',
-        staffId: user.staffId || '',
-        registerId: user.registerId || '',
-        currentPassword: user.role === 'teacher' ? 'teacher' : 'student',
-        newPassword: '',
-      });
-      setError(null);
-    }
-  }, [user, isOpen]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const updateData = {
-        name: formData.name,
-        ...(user.role === 'student'
-          ? { parentEmail: formData.parentEmail }
-          : { email: formData.email }),
-        ...(formData.staffId && { staffId: formData.staffId }),
-        ...(formData.registerId && { registerId: formData.registerId }),
-        ...(formData.newPassword && { newPassword: formData.newPassword }),
-      };
-
-      await request(`/admin/users/${user.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-      });
-
-      onSave();
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Strong blur backdrop (no black overlay). Click outside to close. */}
-      <button
-        type="button"
-        aria-label="Close modal"
-        onClick={onClose}
-        className="absolute inset-0 w-full h-full bg-transparent backdrop-blur-xs backdrop-brightness-75 backdrop-saturate-150"
-      />
-      <div
-        className="relative bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl max-h-[90vh] overflow-y-auto modern-scrollbar"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">
-            Edit {user?.role === 'teacher' ? 'Teacher' : 'Student'}
-          </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
-          </div>
-
-          {user?.role === 'teacher' ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Parent Email</label>
-              <input
-                type="email"
-                value={formData.parentEmail}
-                onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-          )}
-
-          {user?.role === 'teacher' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Staff ID</label>
-              <input
-                type="text"
-                value={formData.staffId}
-                onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
-                className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          )}
-
-          {user?.role === 'student' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Register ID</label>
-              <input
-                type="text"
-                value={formData.registerId}
-                onChange={(e) => setFormData({ ...formData, registerId: e.target.value })}
-                className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Current Password</label>
-            <div className="relative">
-              <input
-                type={showCurrentPassword ? 'text' : 'password'}
-                value={formData.currentPassword}
-                className="mt-1 w-full border rounded-md px-3 py-2 pr-10 text-sm bg-gray-50"
-                readOnly
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">New Password (optional)</label>
-            <div className="relative">
-              <input
-                type={showNewPassword ? 'text' : 'password'}
-                value={formData.newPassword}
-                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                className="mt-1 w-full border rounded-md px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Leave blank to keep current password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {error && <Notice text={error} />}
-
-          <div className="flex gap-2 pt-4">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              {submitting ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 
@@ -712,22 +424,25 @@ export default function UserManagement() {
         }}
       />
 
-      {/* Modals */}
-      <EditUserModal
-        user={editingUser}
+      {/* Shared Modals */}
+      <EditUserDialog
         isOpen={!!editingUser}
         onClose={() => setEditingUser(null)}
-        onSave={() => {
+        onSaved={() => {
           setEditingUser(null);
           loadUsers();
         }}
+        user={editingUser}
+        mode="admin"
+        request={request}
+        classes={classes}
       />
 
-      <DeleteConfirmModal
-        user={deletingUser}
+      <DeleteConfirmDialog
         isOpen={!!deletingUser}
         onClose={() => setDeletingUser(null)}
         onConfirm={handleDelete}
+        user={deletingUser}
       />
     </div>
   );

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, setToken } from '../utils/auth';
+import { API_BASE, setToken } from '@/utils/auth';
+import ForgotPasswordDialog from '../Auth/components/ForgotPasswordDialog';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
 
   async function onSubmit(e) {
@@ -24,8 +26,8 @@ export default function Login() {
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       setToken(data.token);
       navigate(data.redirectPath || '/login', { replace: true });
-    } catch (e) {
-      setErr(e.message);
+    } catch (e2) {
+      setErr(e2.message);
     } finally {
       setSubmitting(false);
     }
@@ -72,7 +74,23 @@ export default function Login() {
             Admin/Teacher: enter your email. Student: enter Parent email.
           </p>
         </form>
+
+        <button
+          type="button"
+          onClick={() => setShowForgot(true)}
+          className="mt-3 w-full text-center text-xs text-blue-700 hover:underline"
+        >
+          Forgot password?
+        </button>
       </div>
+
+      <ForgotPasswordDialog
+        isOpen={showForgot}
+        onClose={() => setShowForgot(false)}
+        onSuccess={() => {
+          // Optional: show a toast or message here
+        }}
+      />
     </div>
   );
 }

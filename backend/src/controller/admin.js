@@ -234,40 +234,88 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
 
     await User.deleteOne({ _id: id });
 
-    res.json({ 
-      success: true, 
-      message: `${user.role} ${user.name} deleted successfully` 
+    res.json({
+      success: true,
+      message: `${user.role} ${user.name} deleted successfully`
     });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-// Also add the existing PUT route for updates if not already present
+// Enhanced PUT: allow admin to change role (teacher<->student), class assignment for teachers,
+// and class-teacher assignment for students.
 router.put('/users/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, email, parentEmail, staffId, registerId, newPassword } = req.body;
+  const {
+    name,
+    email,
+    parentEmail,
+    staffId,
+    registerId,
+    newPassword,
+    role,        // 'teacher' | 'student'
+    classId,     // for teachers
+    teacherId,   // for students
+  } = req.body || {};
 
   try {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Update fields
+    // Basic
     if (name) user.name = name;
-    if (email && user.role !== 'student') user.email = email.toLowerCase();
-    if (parentEmail && user.role === 'student') user.parentEmail = parentEmail.toLowerCase();
-    if (staffId !== undefined) user.staffId = staffId.trim() || null;
-    if (registerId !== undefined) user.registerId = registerId.trim() || null;
-    
-    // Update password if provided
+    if (staffId !== undefined) user.staffId = staffId ? staffId.trim() : null;
+    if (registerId !== undefined) user.registerId = registerId ? registerId.trim() : null;
+
+    const targetRole = role || user.role;
+
+    if (targetRole === 'teacher') {
+      if (email) user.email = email.toLowerCase();
+      // Clear student-only fields
+      user.parentEmail = undefined;
+      user.assignedTeacherId = undefined;
+      user.assignedClassId = undefined;
+
+      if (classId) {
+        const exists = await ClassModel.exists({ _id: classId });
+        if (!exists) return res.status(404).json({ error: 'Class not found' });
+        user.classIds = [classId];
+      } else if (!user.classIds?.length) {
+        return res.status(400).json({ error: 'Teacher requires a class assignment' });
+      }
+    } else if (targetRole === 'student') {
+      if (parentEmail) user.parentEmail = parentEmail.toLowerCase();
+      // Clear teacher-only fields
+      user.email = undefined;
+
+      if (teacherId) {
+        const teacher = await User.findOne({ _id: teacherId, role: 'teacher' }).populate('classIds', 'class section').lean();
+        if (!teacher) return res.status(404).json({ error: 'Teacher not found' });
+        const tClass = teacher.classIds?.[0];
+        if (!tClass) return res.status(400).json({ error: 'Selected teacher has no class assigned' });
+        user.assignedTeacherId = teacherId;
+        user.assignedClassId = tClass._id;
+        user.classIds = [tClass._id];
+      } else if (!user.assignedClassId) {
+        return res.status(400).json({ error: 'Student requires a class teacher' });
+      }
+    } else {
+      if (role === 'admin') return res.status(400).json({ error: 'Changing to admin is not allowed' });
+    }
+
+    if (role && (role === 'teacher' || role === 'student')) {
+      user.role = role;
+    }
+
     if (newPassword) {
       user.passwordHash = await bcrypt.hash(newPassword, 10);
     }
 
     await user.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       user: {
         id: user._id,
         name: user.name,

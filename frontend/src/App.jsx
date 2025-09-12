@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+import Login from './pages/Auth/Login';
 import ProtectedRoute from './pages/components/ProtectedRoute';
 import UserManagement from './pages/Admin/UserManagement/UserManagement';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
