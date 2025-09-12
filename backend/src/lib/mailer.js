@@ -6,8 +6,7 @@ const {
   SMTP_USER,
   SMTP_PASS,
   FROM_EMAIL,
-  APP_NAME = 'STEMPlay',
-  NODE_ENV = 'development',
+  APP_NAME = 'STEMPlay'
 } = process.env;
 
 let transporter;
@@ -17,11 +16,7 @@ export function getTransporter() {
       host: SMTP_HOST || 'smtp.gmail.com',
       port: Number(SMTP_PORT || 465),
       secure: String(SMTP_PORT || 465) === '465', // TLS for 465
-      auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-      tls: {
-        // In dev, allow self-signed certs; in prod, enforce validation
-        rejectUnauthorized: NODE_ENV === 'production',
-      },
+      auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
     });
   }
   return transporter;
@@ -38,16 +33,7 @@ export async function verifyEmailTransport() {
   }
 }
 
-export async function sendWelcomeEmail({
-  to,
-  role,
-  name,
-  classLabel,
-  password,
-  studentName,
-  staffId,
-  registerId,
-}) {
+export async function sendWelcomeEmail({ to, role, name, classLabel, password, studentName, staffId, registerId }) {
   const subject =
     role === 'Teacher'
       ? `${APP_NAME} • Your teacher account`
@@ -83,11 +69,29 @@ export async function sendWelcomeEmail({
   ].filter(Boolean);
 
   await getTransporter().sendMail({
-    from:
-      FROM_EMAIL ||
-      (SMTP_USER
-        ? `${APP_NAME} <${SMTP_USER}>`
-        : `${APP_NAME} <no-reply@localhost>`),
+    from: FROM_EMAIL || (SMTP_USER ? `${APP_NAME} <${SMTP_USER}>` : `${APP_NAME} <no-reply@localhost>`),
+    to,
+    subject,
+    text: lines.join('\n')
+  });
+}
+
+export async function sendPasswordOtpEmail({ to, code, name }) {
+  const subject = `${APP_NAME} • Password reset code`;
+  const lines = [
+    `Hello ${name || ''},`,
+    '',
+    'We received a request to reset your password.',
+    `Your one-time code: ${code}`,
+    '',
+    'This code will expire in 10 minutes.',
+    'If you did not request this, you can safely ignore this email.',
+    '',
+    'Thanks,',
+    `${APP_NAME} Team`,
+  ];
+  await getTransporter().sendMail({
+    from: FROM_EMAIL || (SMTP_USER ? `${APP_NAME} <${SMTP_USER}>` : `${APP_NAME} <no-reply@localhost>`),
     to,
     subject,
     text: lines.join('\n'),
