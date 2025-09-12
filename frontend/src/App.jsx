@@ -10,16 +10,11 @@ import UserManagement from './pages/Admin/UserManagement/UserManagement';
 // Teacher
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import StudentManagement from './pages/Teacher/StudentManagement';
+import TeacherBlogs from './pages/Teacher/Blogs';
 
 // Student
 import StudentDashboard from './pages/StudentDashboard';
-import Games from './pages/Games/Games';
-import Mathtrail from './pages/Games/Mathtrail';
-import WordTrail from './pages/Games/WordTrail';
-import WordQuest from './pages/Games/WordQuest';
-import CircuitSnap from './pages/Games/CircuitSnap';
-import ChemConnect from './pages/Games/ChemConnect';
-import Sudoku from './pages/Games/Sudoku';
+
 // Shared
 import Profile from './pages/Profile';
 
@@ -44,25 +39,18 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/student-management" element={<StudentManagement />} />
+            <Route path="/teacher/blogs" element={<TeacherBlogs />} />
           </Route>
         </Route>
 
         {/* Student routes (protected) */}
         <Route element={<ProtectedRoute allow={['student']} />}>
-  <Route element={<AppLayout />}>
-    <Route path="/student" element={<StudentDashboard />} />
-    <Route path="/student/games" element={<Games />} />
-    <Route path="/student/games/mathtrail" element={<Mathtrail />} />
-    <Route path='/student/games/wordtrail' element={<WordTrail/>} />
-    <Route path='/student/games/wordquest' element={<WordQuest/>} />
-    <Route path='/student/games/circuitsnap' element={<CircuitSnap />} />
-    <Route path='/student/games/chemconnect' element={<ChemConnect />} />
-    <Route path='/student/games/sudoku' element={<Sudoku />} />
-    
-  </Route>
-</Route>
+          <Route element={<AppLayout />}>
+            <Route path="/student" element={<StudentDashboard />} />
+          </Route>
+        </Route>
 
-        {/* Profile for all roles (protected) */}
+        {/* Profile (protected for all roles) */}
         <Route element={<ProtectedRoute allow={['admin', 'teacher', 'student']} />}>
           <Route element={<AppLayout />}>
             <Route path="/profile" element={<Profile />} />

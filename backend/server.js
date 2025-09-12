@@ -10,6 +10,7 @@ import adminRoutes from './src/controller/admin.js';
 import authRoutes from './src/controller/auth.js';
 import teacherRoutes from './src/controller/teacher.js';
 import profileRoutes from './src/controller/profile.js';
+import blogRoutes from './src/controller/blogs.js'; // <-- add
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -37,7 +38,7 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // curl / mobile / same-origin
+      if (!origin) return callback(null, true);
       if (NODE_ENV !== 'production') return callback(null, true);
       if (FRONTEND_URLS.includes(origin)) return callback(null, true);
       return callback(new Error('CORS not allowed'), false);
@@ -50,7 +51,7 @@ app.use(
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Body parsing
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '2mb' })); // raised slightly for blog payloads
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -67,6 +68,7 @@ app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/teacher', teacherRoutes);
 app.use('/profile', profileRoutes);
+app.use('/', blogRoutes); // <-- mount: exposes /teacher/blogs and /student/blogs
 
 // 404 handler
 app.use((req, res, next) => {
@@ -113,36 +115,24 @@ async function seedAdmin() {
   }
 }
 
-// Start server after DB connection
 async function start() {
   try {
-    await mongoose.connect(MONGO_URI, {
-      dbName: MONGO_URI.split('/').pop(),
-    });
+    await mongoose.connect(MONGO_URI, { dbName: MONGO_URI.split('/').pop() });
     console.log('✅ MongoDB connected');
 
-    // Optional SMTP verify (non-fatal)
     verifyEmailTransport?.().catch(() => {});
-
-    // Seed admin user
     await seedAdmin();
 
     server = app.listen(PORT, () => {
       console.log(`🚀 API running on http://localhost:${PORT}`);
-      console.log(`🌐 Allowed origins: ${FRONTEND_URLS.join(', ')}`);
-      console.log(`📦 Environment: ${NODE_ENV}`);
-      console.log(`🔐 Auth bypass: ${DISABLE_AUTH ? 'ENABLED (dev only)' : 'disabled'}`);
-      console.log(`✉️  Email rollback on failure: ${EMAIL_TX_ROLLBACK ? 'ENABLED' : 'disabled'}`);
     });
   } catch (e) {
     console.error('❌ Failed to start server:', e);
     process.exit(1);
   }
 }
-
 start();
 
-// Graceful shutdown
 async function shutdown(code = 0) {
   try {
     console.log(' Shutting down...');
