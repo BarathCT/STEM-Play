@@ -64,12 +64,6 @@ async function geminiDefine(term) {
 
   const body = {
     generationConfig: { temperature: 0.2, maxOutputTokens: 256 },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUAL_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
     contents: [
       {
         role: 'user',
@@ -132,12 +126,6 @@ async function geminiSimplify(text, level = 'sentence') {
       : 'Rewrite in very simple words (max 12 words).';
   const body = {
     generationConfig: { temperature: 0.25, maxOutputTokens: 160 },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUAL_CONTENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
     contents: [
       {
         role: 'user',
@@ -515,7 +503,7 @@ export default function BlogView() {
   if (!blog) return <div className="text-center py-12 text-gray-500">Not found.</div>;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <div className="mx-auto w/full max-w-6xl px-4 py-6">
       {/* Back */}
       <div className="mb-3">
         <button

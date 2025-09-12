@@ -10,7 +10,7 @@ import adminRoutes from './src/controller/admin.js';
 import authRoutes from './src/controller/auth.js';
 import teacherRoutes from './src/controller/teacher.js';
 import profileRoutes from './src/controller/profile.js';
-import blogRoutes from './src/controller/blogs.js'; // <-- add
+import blogRoutes from './src/controller/blogs.js';
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -68,21 +68,14 @@ app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/teacher', teacherRoutes);
 app.use('/profile', profileRoutes);
-app.use('/', blogRoutes); // <-- mount: exposes /teacher/blogs and /student/blogs
+app.use('/', blogRoutes); // exposes /teacher/blogs and /student/blogs
 
-// 404 handler
+// 404 handler (keep AFTER all routes)
 app.use((req, res, next) => {
   if (res.headersSent) return next();
   res.status(404).json({ error: 'Not found' });
 });
 
-app.get("/quiz/leaderboard", (req, res) => {
-  res.json([
-    { id: 1, name: "Alice", score: 95 },
-    { id: 2, name: "Bob", score: 88 },
-    { id: 3, name: "Charlie", score: 72 },
-  ]);
-});
 // Error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {

@@ -6,7 +6,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List as ListIcon, ListOrdered, Link as LinkIcon,
   Undo2, Redo2, Heading1, Heading2, Heading3, X,
-  ImagePlus, ChevronDown, Table as TableIcon
+  ImagePlus, ChevronDown, Table as TableIcon, Eye
 } from 'lucide-react';
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -28,6 +28,9 @@ import CollapseExt from '../components/Editor/Collapse';
 
 // Extract dialog
 import ExtractFromImagesDialog from '../components/Editor/ExtractFromImagesDialog';
+
+// Student preview modal (student-perspective view)
+import StudentPreviewModal from './StudentPreviewModal';
 
 /* ---------- UI ---------- */
 function ToolbarButton({ active, disabled, onClick, title, children }) {
@@ -461,7 +464,7 @@ export default function TeacherBlogs() {
   const [ok, setOk] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
 
-  // Only the main dialog open + extract
+  // Main Create/Edit dialog + extract
   const [open, setOpen] = useState(false);
   const [extractOpen, setExtractOpen] = useState(false);
 
@@ -471,6 +474,12 @@ export default function TeacherBlogs() {
   const [summary, setSummary] = useState('');
   const [published, setPublished] = useState(true);
   const [content, setContent] = useState({ type: 'doc', content: [{ type: 'paragraph' }] });
+
+  // Student preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBlog, setPreviewBlog] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState('');
 
   const editorRef = useRef(null);
   const handleEditorReady = useCallback((editor) => {
@@ -517,6 +526,21 @@ export default function TeacherBlogs() {
       setOpen(true);
     } catch (e) {
       setErr(e.message);
+    }
+  }
+
+  async function openPreview(b) {
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewErr('');
+    setPreviewBlog(null);
+    try {
+      const { blog } = await authFetch(`/teacher/blogs/${b.id}`);
+      setPreviewBlog(blog || null);
+    } catch (e) {
+      setPreviewErr(e.message);
+    } finally {
+      setPreviewLoading(false);
     }
   }
 
@@ -600,7 +624,16 @@ export default function TeacherBlogs() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {blogs.map((b) => (
-              <div key={b.id} className="border rounded-lg p-3 bg-white">
+              <div key={b.id} className="border rounded-lg p-3 bg-white relative">
+                {/* Student view (preview) pill in top-right corner */}
+                <button
+                  onClick={() => openPreview(b)}
+                  className="absolute top-2 right-2 inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+                  title="Preview student view"
+                >
+                  <Eye className="w-3.5 h-3.5" /> View
+                </button>
+
                 <div className="text-xs text-gray-500 mb-1">{b.subject}</div>
                 <div className="text-base font-semibold text-gray-900">{b.title}</div>
                 <div className="text-sm text-gray-600 line-clamp-3 mt-1">{b.summary || ''}</div>
@@ -685,6 +718,15 @@ export default function TeacherBlogs() {
           </div>
         </div>
       )}
+
+      {/* Student Preview Modal */}
+      <StudentPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        blog={previewBlog}
+        loading={previewLoading}
+        error={previewErr}
+      />
 
       {/* Dialogs */}
       <ExtractFromImagesDialog open={extractOpen} onClose={() => setExtractOpen(false)} onApply={onApplyExtract} />

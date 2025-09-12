@@ -1,28 +1,29 @@
 // Removed the old inline header; Navbar comes from AppLayout
 import { useEffect, useState } from "react";
-import { authFetch, clearToken } from "../utils/auth";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { authFetch, clearToken } from "@/utils/auth";
+import { useNavigate, Link } from "react-router-dom";
+
 export default function StudentDashboard() {
   const [user, setUser] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let alive = true;
     async function fetchUser() {
       try {
         const data = await authFetch("/auth/me");
+        if (!alive) return;
         setUser(data.user);
-
-        const lbData = await authFetch("/quiz/leaderboard").catch(() => []);
-        setLeaderboard(lbData);
-      } catch (err) {
-        console.error("Auth error:", err);
+      } catch {
+        // Auth failed -> clear token and redirect to login
         clearToken();
         navigate("/login");
       }
     }
     fetchUser();
+    return () => {
+      alive = false;
+    };
   }, [navigate]);
 
   if (!user) {
@@ -36,7 +37,7 @@ export default function StudentDashboard() {
         <h2 className="text-xl font-bold text-blue-700 mb-3">Quizzes</h2>
         <p className="text-sm text-gray-600">Your available quizzes will appear here.</p>
         <button
-          // onClick={() => navigate("/quiz")}
+          onClick={() => navigate("/student/quiz")}
           className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           Attempt Quiz
@@ -47,36 +48,12 @@ export default function StudentDashboard() {
       <section className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-green-700 mb-3">Games</h2>
         <p className="text-sm text-gray-600">Play fun STEM-related educational games here.</p>
-         <Link
+        <Link
           to="/student/games"
           className="inline-block mt-4 px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
         >
           Play Games
         </Link>
-      </section>
-
-      {/* Leaderboard */}
-      <section className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-yellow-700 mb-3">Leaderboard</h2>
-        <div className="bg-gray-50 rounded-lg p-4">
-          {leaderboard.length === 0 ? (
-            <p className="text-gray-500">No scores yet. Be the first!</p>
-          ) : (
-            <ul>
-              {leaderboard.map((entry, idx) => (
-                <li
-                  key={entry.id || idx}
-                  className="flex justify-between py-2 border-b last:border-none"
-                >
-                  <span className="font-medium text-gray-800">
-                    {idx + 1}. {entry.name}
-                  </span>
-                  <span className="font-bold text-blue-600">{entry.score}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </section>
     </div>
   );
