@@ -90,7 +90,7 @@ async function buildProfile(userDoc) {
 }
 
 /**
- * GET /settings/me
+ * GET /profile/me
  * Returns enriched profile for the logged-in user (all available fields + relations).
  */
 router.get('/me', requireAuth, async (req, res) => {
@@ -106,7 +106,7 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 /**
- * PUT /settings/profile
+ * PUT /profile/profile
  * Update own profile details (safe fields only).
  * - Admin/Teacher: name, email, staffId
  * - Student: name, parentEmail, registerId
@@ -145,7 +145,7 @@ router.put('/profile', requireAuth, async (req, res) => {
 });
 
 /**
- * PUT /settings/password
+ * PUT /profile/password
  * Change own password (requires current password).
  * Body: { currentPassword, newPassword }
  */
@@ -176,7 +176,7 @@ router.put('/password', requireAuth, async (req, res) => {
 
 /**
  * Optional helper: list all classes for UI dropdowns (if you want it here)
- * GET /settings/classes
+ * GET /profile/classes
  */
 router.get('/classes', requireAuth, async (_req, res) => {
   const list = await ClassModel.find({}).sort({ class: 1, section: 1 }).lean();

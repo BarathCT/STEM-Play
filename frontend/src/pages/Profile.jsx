@@ -20,12 +20,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load enriched profile (ensure /settings/me is mounted on the backend)
+  // Load enriched profile (ensure /profile/me is mounted on the backend)
   useEffect(() => {
     let cancelled = false;
     async function fetchUser() {
       try {
-        const data = await authFetch("/settings/me");
+        const data = await authFetch("/profile/me");
         if (!cancelled) {
           setUser(data?.user || null);
           setLoading(false);

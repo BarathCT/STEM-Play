@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import adminRoutes from './src/controller/admin.js';
 import authRoutes from './src/controller/auth.js';
 import teacherRoutes from './src/controller/teacher.js';
-import settingsRoutes from './src/controller/settings.js';
+import profileRoutes from './src/controller/profile.js';
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -66,7 +66,7 @@ app.get('/health', (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/teacher', teacherRoutes);
-app.use('/settings', settingsRoutes);
+app.use('/profile', profileRoutes);
 
 // 404 handler
 app.use((req, res, next) => {
