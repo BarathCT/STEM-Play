@@ -138,7 +138,7 @@ start();
 // Graceful shutdown
 async function shutdown(code = 0) {
   try {
-    console.log('🛑 Shutting down...');
+    console.log(' Shutting down...');
     if (server) await new Promise((r) => server.close(r));
     await mongoose.connection.close();
   } finally {
