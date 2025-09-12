@@ -74,6 +74,13 @@ app.use((req, res, next) => {
   res.status(404).json({ error: 'Not found' });
 });
 
+app.get("/quiz/leaderboard", (req, res) => {
+  res.json([
+    { id: 1, name: "Alice", score: 95 },
+    { id: 2, name: "Bob", score: 88 },
+    { id: 3, name: "Charlie", score: 72 },
+  ]);
+});
 // Error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {

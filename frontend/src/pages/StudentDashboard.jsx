@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { authFetch, clearToken } from "../utils/auth";
 import { useNavigate } from "react-router-dom";
-
+import { Link } from "react-router-dom";
 export default function StudentDashboard() {
   const [user, setUser] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -47,12 +47,12 @@ export default function StudentDashboard() {
       <section className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-green-700 mb-3">Games</h2>
         <p className="text-sm text-gray-600">Play fun STEM-related educational games here.</p>
-        <button
-          // onClick={() => navigate("/games")}
-          className="mt-4 px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+         <Link
+          to="/student/games"
+          className="inline-block mt-4 px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
         >
           Play Games
-        </button>
+        </Link>
       </section>
 
       {/* Leaderboard */}
