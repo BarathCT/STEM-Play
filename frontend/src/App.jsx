@@ -11,12 +11,16 @@ import UserManagement from '@/pages/Admin/UserManagement/UserManagement';
 import TeacherDashboard from '@/pages/Teacher/TeacherDashboard';
 import StudentManagement from '@/pages/Teacher/StudentManagement';
 import TeacherBlogs from '@/pages/Teacher/Blogs';
+import TeacherQuizzes from '@/pages/Teacher/Quiz/TeacherQuizzes';
 
 // Student
 import StudentDashboard from '@/pages/Student/StudentDashboard';
 import StudentBlogs from '@/pages/Student/Blogs';
 import BlogView from '@/pages/Student/BlogView';
+import StudentQuizzes from '@/pages/Student/Quiz/StudentQuizzes';
+import QuizPlay from '@/pages/Student/Quiz/QuizPlay';
 
+// Games (student)
 import Games from '@/pages/Games/Games';
 import Mathtrail from '@/pages/Games/Mathtrail';
 import Sudoku from '@/pages/Games/Sudoku';
@@ -35,6 +39,9 @@ export default function App() {
         {/* Public */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        {/* Legacy redirects */}
+        <Route path="/games" element={<Navigate to="/student/games" replace />} />
+        <Route path="/student/quiz" element={<Navigate to="/student/quizzes" replace />} />
 
         {/* Admin routes (protected) */}
         <Route element={<ProtectedRoute allow={['admin']} />}>
@@ -50,6 +57,7 @@ export default function App() {
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/student-management" element={<StudentManagement />} />
             <Route path="/teacher/blogs" element={<TeacherBlogs />} />
+            <Route path="/teacher/quizzes" element={<TeacherQuizzes />} />
           </Route>
         </Route>
 
@@ -60,6 +68,9 @@ export default function App() {
             {/* Blogs */}
             <Route path="/student/blogs" element={<StudentBlogs />} />
             <Route path="/student/blogs/:id" element={<BlogView />} />
+            {/* Quizzes */}
+            <Route path="/student/quizzes" element={<StudentQuizzes />} />
+            <Route path="/student/quizzes/:id" element={<QuizPlay />} />
             {/* Games hub + individual games */}
             <Route path="/student/games" element={<Games />} />
             <Route path="/student/games/mathtrail" element={<Mathtrail />} />

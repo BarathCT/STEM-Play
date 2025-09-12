@@ -37,7 +37,7 @@ export default function StudentDashboard() {
         <h2 className="text-xl font-bold text-blue-700 mb-3">Quizzes</h2>
         <p className="text-sm text-gray-600">Your available quizzes will appear here.</p>
         <button
-          onClick={() => navigate("/student/quiz")}
+          onClick={() => navigate("/student/quizzes")}
           className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           Attempt Quiz

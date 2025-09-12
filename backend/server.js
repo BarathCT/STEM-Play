@@ -11,6 +11,7 @@ import authRoutes from './src/controller/auth.js';
 import teacherRoutes from './src/controller/teacher.js';
 import profileRoutes from './src/controller/profile.js';
 import blogRoutes from './src/controller/blogs.js';
+import quizRoutes from './src/controller/quizzes.js'; // NEW: quizzes router
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -51,7 +52,7 @@ app.use(
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Body parsing
-app.use(express.json({ limit: '2mb' })); // raised slightly for blog payloads
+app.use(express.json({ limit: '2mb' })); // raised slightly for blog/quiz payloads
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -68,7 +69,8 @@ app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/teacher', teacherRoutes);
 app.use('/profile', profileRoutes);
-app.use('/', blogRoutes); // exposes /teacher/blogs and /student/blogs
+app.use('/', blogRoutes);   // exposes /teacher/blogs and /student/blogs
+app.use('/', quizRoutes);   // NEW: exposes /teacher/quizzes and /student/quizzes
 
 // 404 handler (keep AFTER all routes)
 app.use((req, res, next) => {

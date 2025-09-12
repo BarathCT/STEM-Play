@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings as SettingsIcon, LogOut, BookOpenText } from 'lucide-react';
+import { Menu, X, User, Settings as SettingsIcon, LogOut, BookOpenText, ListChecks } from 'lucide-react';
 import { clearToken } from '../../utils/auth';
 
 const Navbar = ({ user }) => {
@@ -46,10 +46,12 @@ const Navbar = ({ user }) => {
       { name: 'Dashboard', to: '/teacher' },
       { name: 'Students', to: '/teacher/student-management' },
       { name: 'Blogs', to: '/teacher/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
+      { name: 'Quizzes', to: '/teacher/quizzes', icon: <ListChecks className="w-3.5 h-3.5" /> },
     ],
     student: [
       { name: 'Dashboard', to: '/student' },
       { name: 'Blogs', to: '/student/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
+      { name: 'Quizzes', to: '/student/quizzes', icon: <ListChecks className="w-3.5 h-3.5" /> },
     ],
   };
   const navItems = navigationByRole[user.role] || navigationByRole.student;
