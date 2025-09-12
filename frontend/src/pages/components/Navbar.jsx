@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { Menu, X, User, Settings as SettingsIcon, LogOut, BookOpenText } from 'lucide-react';
 import { clearToken } from '../../utils/auth';
 
 const Navbar = ({ user }) => {
@@ -44,9 +44,13 @@ const Navbar = ({ user }) => {
     admin: [{ name: 'User Management', to: '/admin/user-management' }],
     teacher: [
       { name: 'Dashboard', to: '/teacher' },
-      { name: 'Students', to: '/teacher/student-management' }, // added
+      { name: 'Students', to: '/teacher/student-management' },
+      { name: 'Blogs', to: '/teacher/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
     ],
-    student: [{ name: 'Dashboard', to: '/student' }],
+    student: [
+      { name: 'Dashboard', to: '/student' },
+      { name: 'Blogs', to: '/student/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
+    ],
   };
   const navItems = navigationByRole[user.role] || navigationByRole.student;
 
@@ -78,7 +82,7 @@ const Navbar = ({ user }) => {
             STEM<span className="text-blue-500">Play</span>
           </button>
 
-          {/* Desktop nav (classic links) */}
+          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map((item) => (
               <NavLink
@@ -92,12 +96,15 @@ const Navbar = ({ user }) => {
                   }`
                 }
               >
-                {item.name}
+                <span className="inline-flex items-center gap-1.5">
+                  {item.icon}
+                  {item.name}
+                </span>
               </NavLink>
             ))}
           </div>
 
-          {/* Right side: profile + mobile menu */}
+          {/* Right side */}
           <div className="flex items-center gap-2">
             {/* Profile dropdown (desktop) */}
             <div className="relative hidden md:block">
@@ -201,7 +208,10 @@ const Navbar = ({ user }) => {
                     }`
                   }
                 >
-                  {item.name}
+                  <span className="inline-flex items-center gap-1.5">
+                    {item.icon}
+                    {item.name}
+                  </span>
                 </NavLink>
               ))}
 

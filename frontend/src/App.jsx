@@ -10,9 +10,12 @@ import UserManagement from './pages/Admin/UserManagement/UserManagement';
 // Teacher
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import StudentManagement from './pages/Teacher/StudentManagement';
+import TeacherBlogs from './pages/Teacher/Blogs';
 
 // Student
 import StudentDashboard from './pages/StudentDashboard';
+import StudentBlogs from './pages/Student/Blogs';
+import BlogView from './pages/Student/BlogView';
 
 // Shared
 import Profile from './pages/Profile';
@@ -38,6 +41,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/student-management" element={<StudentManagement />} />
+            <Route path="/teacher/blogs" element={<TeacherBlogs />} />
           </Route>
         </Route>
 
@@ -45,10 +49,12 @@ export default function App() {
         <Route element={<ProtectedRoute allow={['student']} />}>
           <Route element={<AppLayout />}>
             <Route path="/student" element={<StudentDashboard />} />
+            <Route path="/student/blogs" element={<StudentBlogs />} />
+            <Route path="/student/blogs/:id" element={<BlogView />} />
           </Route>
         </Route>
 
-        {/* Profile for all roles (protected) */}
+        {/* Profile (protected for all roles) */}
         <Route element={<ProtectedRoute allow={['admin', 'teacher', 'student']} />}>
           <Route element={<AppLayout />}>
             <Route path="/profile" element={<Profile />} />
