@@ -13,7 +13,13 @@ import StudentManagement from './pages/Teacher/StudentManagement';
 
 // Student
 import StudentDashboard from './pages/StudentDashboard';
-
+import Games from './pages/Games/Games';
+import Mathtrail from './pages/Games/Mathtrail';
+import WordTrail from './pages/Games/WordTrail';
+import WordQuest from './pages/Games/WordQuest';
+import CircuitSnap from './pages/Games/CircuitSnap';
+import ChemConnect from './pages/Games/ChemConnect';
+import Sudoku from './pages/Games/Sudoku';
 // Shared
 import Profile from './pages/Profile';
 
@@ -43,10 +49,18 @@ export default function App() {
 
         {/* Student routes (protected) */}
         <Route element={<ProtectedRoute allow={['student']} />}>
-          <Route element={<AppLayout />}>
-            <Route path="/student" element={<StudentDashboard />} />
-          </Route>
-        </Route>
+  <Route element={<AppLayout />}>
+    <Route path="/student" element={<StudentDashboard />} />
+    <Route path="/student/games" element={<Games />} />
+    <Route path="/student/games/mathtrail" element={<Mathtrail />} />
+    <Route path='/student/games/wordtrail' element={<WordTrail/>} />
+    <Route path='/student/games/wordquest' element={<WordQuest/>} />
+    <Route path='/student/games/circuitsnap' element={<CircuitSnap />} />
+    <Route path='/student/games/chemconnect' element={<ChemConnect />} />
+    <Route path='/student/games/sudoku' element={<Sudoku />} />
+    
+  </Route>
+</Route>
 
         {/* Profile for all roles (protected) */}
         <Route element={<ProtectedRoute allow={['admin', 'teacher', 'student']} />}>
