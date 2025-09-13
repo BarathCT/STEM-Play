@@ -12,6 +12,7 @@ import TeacherDashboard from '@/pages/Teacher/TeacherDashboard';
 import StudentManagement from '@/pages/Teacher/StudentManagement';
 import TeacherBlogs from '@/pages/Teacher/Blogs';
 import TeacherQuizzes from '@/pages/Teacher/Quiz/TeacherQuizzes';
+import TeacherLeaderboards from '@/pages/Teacher/Leaderboards'; // FIXED: import the teacher leaderboards page
 
 // Student
 import StudentDashboard from '@/pages/Student/StudentDashboard';
@@ -19,6 +20,7 @@ import StudentBlogs from '@/pages/Student/Blogs';
 import BlogView from '@/pages/Student/BlogView';
 import StudentQuizzes from '@/pages/Student/Quiz/StudentQuizzes';
 import QuizPlay from '@/pages/Student/Quiz/QuizPlay';
+import StudentLeaderboards from '@/pages/Student/Leaderboards'; // NEW: student leaderboards page
 
 // Games (student)
 import Games from '@/pages/Games/Games';
@@ -31,6 +33,8 @@ import CircuitSnap from '@/pages/Games/CircuitSnap';
 
 // Shared
 import Profile from '@/pages/Profile';
+import LogicGate from './pages/Games/LogicGate';
+import BinaryGames from './pages/Games/BinaryGames';
 
 export default function App() {
   return (
@@ -58,6 +62,7 @@ export default function App() {
             <Route path="/teacher/student-management" element={<StudentManagement />} />
             <Route path="/teacher/blogs" element={<TeacherBlogs />} />
             <Route path="/teacher/quizzes" element={<TeacherQuizzes />} />
+            <Route path="/teacher/leaderboards" element={<TeacherLeaderboards />} /> {/* Route for teacher leaderboards */}
           </Route>
         </Route>
 
@@ -79,6 +84,10 @@ export default function App() {
             <Route path="/student/games/wordtrail" element={<WordTrail />} />
             <Route path="/student/games/chemconnect" element={<ChemConnect />} />
             <Route path="/student/games/circuitsnap" element={<CircuitSnap />} />
+            <Route path="/student/games/logic-gate" element={<LogicGate />} />
+            <Route path="/student/games/binary-games" element={<BinaryGames />} />
+            {/* Leaderboards (student) */}
+            <Route path="/student/leaderboards" element={<StudentLeaderboards />} /> {/* NEW route */}
           </Route>
         </Route>
 

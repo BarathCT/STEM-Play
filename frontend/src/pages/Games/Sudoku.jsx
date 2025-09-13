@@ -1,221 +1,227 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authFetch } from "@/utils/auth";
+import {
+  Pencil,
+  Eraser,
+  Lightbulb,
+  RotateCcw,
+  Clock,
+  Gauge,
+  AlertTriangle,
+  Trophy,
+  ArrowLeft,
+  Infinity as InfinityIcon,
+  Grid3x3,
+  Hash,
+  Lock,
+  Edit3,
+} from "lucide-react";
 
-/*
-  Full featured Sudoku component with:
-   - Levels 1..5 (1 => 4x4 small grid; 2..5 => 9x9 with increasing difficulty)
-   - Timer with best-time saved per level (localStorage)
-   - Hint, Check, Solve, Reset, Back
-   - Conflicts highlighting, keyboard entry, number pad
-*/
-
-// --- Utility helpers ---
-const cloneBoard = (b) => b.map((r) => r.slice());
-
-// Format time seconds => MM:SS
-const formatTime = (seconds) => {
-  const m = String(Math.floor(seconds / 60)).padStart(2, "0");
-  const s = String(seconds % 60).padStart(2, "0");
+// ---------- Utilities ----------
+const clone = (b) => b.map((r) => r.slice());
+const fmtTime = (sec) => {
+  const m = String(Math.floor(sec / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
   return `${m}:${s}`;
 };
-
-// compute box dimensions for a given size:
-// For size 4 -> 2x2, size 9 -> 3x3. We're using only 4 and 9 sizes here.
-const getBoxDims = (size) => {
-  if (size === 4) return { br: 2, bc: 2 };
-  if (size === 9) return { br: 3, bc: 3 };
-  // fallback (square)
-  const sq = Math.sqrt(size);
-  return { br: sq, bc: sq };
-};
-
-// --- Predefined puzzles ---
-// Level 1: 4x4 (0 = empty)
-const PUZZLE_4x4 = {
-  size: 4,
-  initial: [
-    [1, 0, 0, 4],
-    [0, 3, 4, 0],
-    [0, 4, 1, 0],
-    [3, 0, 0, 2],
-  ],
-};
-
-// Level 2-5: 9x9 puzzles of increasing difficulty
-// (0 = empty). You can swap these with other puzzles.
-const PUZZLE_9_EASY = {
-  size: 9,
-  initial: [
-    [5, 3, 4, 6, 7, 8, 9, 1, 2],
-    [6, 7, 2, 1, 9, 5, 3, 4, 0],
-    [1, 9, 8, 3, 4, 2, 5, 6, 7],
-    [8, 5, 9, 7, 6, 1, 4, 2, 3],
-    [4, 2, 6, 8, 5, 3, 7, 9, 1],
-    [7, 1, 3, 9, 2, 4, 8, 5, 6],
-    [9, 6, 1, 5, 3, 7, 2, 8, 4],
-    [2, 8, 7, 4, 1, 9, 6, 3, 5],
-    [3, 4, 5, 2, 8, 6, 1, 7, 9],
-  ],
-};
-
-const PUZZLE_9_MEDIUM = {
-  size: 9,
-  initial: [
-    [0, 0, 0, 6, 0, 0, 4, 0, 0],
-    [7, 0, 0, 0, 0, 3, 6, 0, 0],
-    [0, 0, 0, 0, 9, 1, 0, 8, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 5, 0, 1, 8, 0, 0, 0, 3],
-    [0, 0, 0, 3, 0, 6, 0, 4, 5],
-    [0, 4, 0, 2, 0, 0, 0, 6, 0],
-    [9, 0, 3, 0, 0, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0, 1, 0, 0],
-  ],
-};
-
-const PUZZLE_9_HARD = {
-  size: 9,
-  initial: [
-    [0, 0, 0, 0, 0, 0, 0, 1, 2],
-    [0, 0, 0, 0, 0, 0, 7, 0, 0],
-    [0, 0, 1, 0, 9, 0, 0, 0, 0],
-    [0, 5, 0, 0, 0, 4, 0, 0, 0],
-    [3, 0, 0, 7, 0, 0, 0, 0, 8],
-    [0, 0, 0, 2, 0, 0, 0, 6, 0],
-    [0, 0, 0, 0, 3, 0, 1, 0, 0],
-    [0, 0, 6, 0, 0, 0, 0, 0, 0],
-    [9, 2, 0, 0, 0, 0, 0, 0, 0],
-  ],
-};
-
-const PUZZLE_9_EXPERT = {
-  size: 9,
-  initial: [
-    [0,0,0,0,0,0,0,0,1],
-    [0,0,0,0,0,3,0,0,0],
-    [0,0,1,0,9,0,0,8,0],
-    [0,5,0,0,0,4,0,0,0],
-    [3,0,0,1,8,0,0,0,0],
-    [0,0,0,3,0,6,0,4,5],
-    [0,4,0,2,0,0,0,6,0],
-    [9,0,3,0,0,0,0,0,0],
-    [0,2,0,0,0,0,0,0,0],
-  ]
-};
-
-// Choose puzzles by level
-function choosePuzzleForLevel(level) {
-  if (level === 1) return PUZZLE_4x4;
-  if (level === 2) return PUZZLE_9_EASY;
-  if (level === 3) return PUZZLE_9_MEDIUM;
-  if (level === 4) return PUZZLE_9_HARD;
-  return PUZZLE_9_EXPERT; // 5
-}
-
-// --- Generic validator + solver that works for 4x4 and 9x9 (and any square size with proper box dims) ---
-const isValidPlacement = (b, r, c, n, size) => {
-  if (n === 0) return true;
-  for (let i = 0; i < size; i++) {
-    if (b[r][i] === n) return false;
-    if (b[i][c] === n) return false;
+const keyOf = (r, c) => `${r},${c}`;
+const randint = (n) => Math.floor(Math.random() * n);
+const shuffle = (arr) => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randint(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  // box
-  const { br, bc } = getBoxDims(size);
+  return a;
+};
+// Box dims: 4x4 => 2x2, 9x9 => 3x3
+const dims = (size) => (size === 4 ? { br: 2, bc: 2 } : { br: 3, bc: 3 });
+
+// ---------- Difficulties & Config ----------
+const DIFFICULTIES = {
+  Beginner: { size: 4, hints: 1, mistakes: 6, mult: 0.6, ref: "beginner", cluesRange: [10, 12] },
+  Easy: { size: 9, hints: 2, mistakes: 5, mult: 0.8, ref: "easy", cluesRange: [40, 45] },
+  Medium: { size: 9, hints: 2, mistakes: 4, mult: 1.0, ref: "medium", cluesRange: [34, 38] },
+  Hard: { size: 9, hints: 3, mistakes: 3, mult: 1.25, ref: "hard", cluesRange: [28, 32] },
+  Expert: { size: 9, hints: 3, mistakes: 3, mult: 1.5, ref: "expert", cluesRange: [24, 28] },
+  Extreme: { size: 9, hints: 3, mistakes: 2, mult: 2.0, ref: "extreme", cluesRange: [22, 24] },
+};
+const DIFF_KEYS = Object.keys(DIFFICULTIES);
+
+// ---------- Sudoku Generation ----------
+function generateSolved(size) {
+  const { br, bc } = dims(size);
+  const basePattern = (r, c) => (r * br + Math.floor(r / br) + c) % size;
+
+  let board = Array.from({ length: size }, (_, r) =>
+    Array.from({ length: size }, (_, c) => basePattern(r, c))
+  );
+
+  const rowBands = Array.from({ length: size / br }, (_, i) => i);
+  const colBands = Array.from({ length: size / bc }, (_, i) => i);
+
+  const shuffledRowBands = shuffle(rowBands);
+  const shuffledColBands = shuffle(colBands);
+
+  const shuffleWithinBand = (bandIdx, bandSize) => {
+    const rows = Array.from({ length: bandSize }, (_, i) => bandIdx * bandSize + i);
+    return shuffle(rows);
+  };
+
+  const rowOrder = [];
+  for (const band of shuffledRowBands) rowOrder.push(...shuffleWithinBand(band, br));
+  const colOrder = [];
+  for (const band of shuffledColBands) colOrder.push(...shuffleWithinBand(band, bc));
+
+  board = rowOrder.map((r) => colOrder.map((c) => board[r][c]));
+
+  const digits = shuffle(Array.from({ length: size }, (_, i) => i + 1));
+  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) board[r][c] = digits[board[r][c]];
+  return board;
+}
+function isValidPlacement(b, r, c, n, size) {
+  for (let i = 0; i < size; i++) {
+    if (b[r][i] === n && i !== c) return false;
+    if (b[i][c] === n && i !== r) return false;
+  }
+  const { br, bc } = dims(size);
   const sr = Math.floor(r / br) * br;
   const sc = Math.floor(c / bc) * bc;
   for (let i = sr; i < sr + br; i++) {
     for (let j = sc; j < sc + bc; j++) {
-      if (b[i][j] === n) return false;
-    }
-  }
-  return true;
-};
-
-function solveBoard(board, size) {
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (board[r][c] === 0) {
-        for (let n = 1; n <= size; n++) {
-          if (isValidPlacement(board, r, c, n, size)) {
-            board[r][c] = n;
-            if (solveBoard(board, size)) return true;
-            board[r][c] = 0;
-          }
-        }
-        return false;
-      }
+      if ((i !== r || j !== c) && b[i][j] === n) return false;
     }
   }
   return true;
 }
-
-const validateFullBoard = (b, size) => {
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const val = b[r][c];
-      if (val === 0) return { ok: false, message: "Board has empty cells" };
-      b[r][c] = 0;
-      if (!isValidPlacement(b, r, c, val, size)) {
-        b[r][c] = val;
-        return { ok: false, message: `Conflict at row ${r + 1} col ${c + 1}` };
+function countSolutions(board, size, limit = 2) {
+  const b = clone(board);
+  let solutions = 0;
+  function backtrack() {
+    let r = -1, c = -1;
+    for (let i = 0; i < size; i++) {
+      for (let j = 0; j < size; j++) {
+        if (b[i][j] === 0) { r = i; c = j; break; }
       }
-      b[r][c] = val;
+      if (r !== -1) break;
     }
+    if (r === -1) return 1;
+    for (let n = 1; n <= size; n++) {
+      if (isValidPlacement(b, r, c, n, size)) {
+        b[r][c] = n;
+        const found = backtrack();
+        if (found) {
+          solutions += found;
+          if (solutions >= limit) return 0;
+        }
+        b[r][c] = 0;
+      }
+    }
+    return 0;
   }
-  return { ok: true, message: "Solved correctly!" };
-};
+  backtrack();
+  return solutions === 0 ? limit : solutions;
+}
+function carvePuzzle(solved, size, targetClues) {
+  const total = size * size;
+  const puzzle = clone(solved);
+  const cells = shuffle(Array.from({ length: total }, (_, k) => k));
+  let clues = total;
 
-// --- Component ---
+  for (const k of cells) {
+    if (clues <= targetClues) break;
+    const r = Math.floor(k / size);
+    const c = k % size;
+    if (puzzle[r][c] === 0) continue;
+    const saved = puzzle[r][c];
+    puzzle[r][c] = 0;
+
+    const solCount = countSolutions(puzzle, size, 2);
+    if (solCount !== 1) puzzle[r][c] = saved;
+    else clues -= 1;
+  }
+  return puzzle;
+}
+function generatePuzzleForDifficulty(diffKey) {
+  const cfg = DIFFICULTIES[diffKey];
+  const size = cfg.size;
+  const solved = generateSolved(size);
+  const [minClues, maxClues] = cfg.cluesRange;
+  const targetClues = minClues + randint(Math.max(1, maxClues - minClues + 1));
+  const puzzle = carvePuzzle(solved, size, targetClues);
+  return { size, initial: puzzle, solved };
+}
+
+// ---------- Component ----------
 export default function Sudoku() {
   const navigate = useNavigate();
 
-  // level state (1..5)
-  const [level, setLevel] = useState(1);
+  // Difficulty modal and outcome
+  const [showDiffModal, setShowDiffModal] = useState(true);
+  const [difficulty, setDifficulty] = useState("Beginner");
+  const [practice, setPractice] = useState(false); // choose in modal
+  const [lastOutcome, setLastOutcome] = useState(null); // 'gameover' | null
 
-  // puzzle meta (size and initial)
-  const [size, setSize] = useState(() => choosePuzzleForLevel(1).size);
-  const [initial, setInitial] = useState(() => cloneBoard(choosePuzzleForLevel(1).initial));
-  const [board, setBoard] = useState(() => cloneBoard(choosePuzzleForLevel(1).initial));
+  const cfg = DIFFICULTIES[difficulty];
 
+  // Core state
+  const [size, setSize] = useState(0);
+  const [initial, setInitial] = useState([]);
+  const [board, setBoard] = useState([]);
+  const [solved, setSolved] = useState(null);
+
+  // Selection / notes
   const [selected, setSelected] = useState({ r: -1, c: -1 });
-  const [conflicts, setConflicts] = useState(new Set());
-  const [message, setMessage] = useState("");
+  const [pencil, setPencil] = useState(false);
+  const [notes, setNotes] = useState(new Map());
+  const [notedCells, setNotedCells] = useState(new Set());
 
-  // Timer
+  // Limits
+  const [hintsLeft, setHintsLeft] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+
+  // Timer / score
   const [time, setTime] = useState(0);
   const [running, setRunning] = useState(false);
+  const [score, setScore] = useState(0);
   const timerRef = useRef(null);
+  const lastMoveRef = useRef(Date.now());
 
-  // Best time from localStorage keyed by level
-  const bestKey = (lv) => `sudoku_best_time_lv${lv}`;
-  const [bestTime, setBestTime] = useState(() => {
-    const v = localStorage.getItem(bestKey(1));
-    return v ? Number(v) : null;
-  });
+  // UI
+  const [message, setMessage] = useState("");
 
-  // initialize puzzle for a chosen level
-  const loadLevel = (lv) => {
-    const p = choosePuzzleForLevel(lv);
-    setLevel(lv);
-    setSize(p.size);
-    setInitial(cloneBoard(p.initial));
-    setBoard(cloneBoard(p.initial));
+  // Internal helpers
+  const submittedRef = useRef(false);
+  const unitMemo = useRef({ rows: new Set(), cols: new Set(), boxes: new Set() });
+
+  // Start new random game
+  function startGame(diffKey, isPractice) {
+    const { size, initial, solved } = generatePuzzleForDifficulty(diffKey);
+    setSize(size);
+    setInitial(clone(initial));
+    setBoard(clone(initial));
+    setSolved(clone(solved));
+
     setSelected({ r: -1, c: -1 });
-    setConflicts(new Set());
-    setMessage("");
+    setPencil(false);
+    setNotes(new Map());
+    setNotedCells(new Set());
+    setHintsLeft(DIFFICULTIES[diffKey].hints);
+    setMistakes(0);
+    setScore(0);
     setTime(0);
+    setMessage("");
     setRunning(true);
-    const best = localStorage.getItem(bestKey(lv));
-    setBestTime(best ? Number(best) : null);
-  };
+    submittedRef.current = false;
+    lastMoveRef.current = Date.now();
+    unitMemo.current = { rows: new Set(), cols: new Set(), boxes: new Set() };
 
-  // load first level on mount
-  useEffect(() => {
-    loadLevel(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setPractice(isPractice);
+    setLastOutcome(null);
+  }
 
-  // timer effect
+  // Timer
   useEffect(() => {
     if (running) {
       timerRef.current = setInterval(() => setTime((t) => t + 1), 1000);
@@ -231,343 +237,641 @@ export default function Sudoku() {
     };
   }, [running]);
 
-  // update conflicts whenever board changes
+  // Keyboard
   useEffect(() => {
-    const newConf = new Set();
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        const val = board[r][c];
-        if (!val) continue;
-        // row
-        for (let i = 0; i < size; i++) {
-          if (i !== c && board[r][i] === val) {
-            newConf.add(`${r},${c}`);
-            newConf.add(`${r},${i}`);
-          }
-        }
-        // col
-        for (let i = 0; i < size; i++) {
-          if (i !== r && board[i][c] === val) {
-            newConf.add(`${r},${c}`);
-            newConf.add(`${i},${c}`);
-          }
-        }
-        // box
-        const { br, bc } = getBoxDims(size);
-        const sr = Math.floor(r / br) * br;
-        const sc = Math.floor(c / bc) * bc;
-        for (let i = sr; i < sr + br; i++) {
-          for (let j = sc; j < sc + bc; j++) {
-            if ((i !== r || j !== c) && board[i][j] === val) {
-              newConf.add(`${r},${c}`);
-              newConf.add(`${i},${j}`);
-            }
-          }
-        }
+    const onKey = (e) => {
+      if (!size) return;
+      if (e.key === "Escape") {
+        setSelected({ r: -1, c: -1 });
+        return;
       }
-    }
-    setConflicts(newConf);
-  }, [board, size]);
+      if (e.key.toLowerCase() === "p") {
+        setPencil((v) => !v);
+        return;
+      }
+      if (e.key.toLowerCase() === "h") {
+        useHint();
+        return;
+      }
+      if (selected.r < 0 || selected.c < 0) return;
 
-  // selection
-  const handleSelect = (r, c) => {
-    setSelected({ r, c });
-  };
-
-  // enter number (from pad or keyboard)
-  const enterNumber = (n) => {
-    const { r, c } = selected;
-    if (r < 0 || c < 0) return;
-    if (initial[r][c] !== 0) return; // fixed cell
-    const newB = cloneBoard(board);
-    newB[r][c] = n;
-    setBoard(newB);
-  };
-
-  // keyboard support
-  useEffect(() => {
-    const handler = (e) => {
-      if (selected.r < 0) return;
       if (e.key >= "1" && e.key <= String(size)) {
-        enterNumber(Number(e.key));
-      } else if (e.key === "Backspace" || e.key === "0" || e.key === "Delete") {
-        enterNumber(0);
+        const n = Number(e.key);
+        pencil ? toggleNote(selected.r, selected.c, n) : enterNumber(selected.r, selected.c, n);
+      } else if (["Backspace", "Delete", "0"].includes(e.key)) {
+        pencil ? clearNotes(selected.r, selected.c) : enterNumber(selected.r, selected.c, 0);
+      }
+
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const dr = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+        const dc = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+        const nr = Math.max(0, Math.min(size - 1, selected.r + dr));
+        const nc = Math.max(0, Math.min(size - 1, selected.c + dc));
+        setSelected({ r: nr, c: nc });
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, board, size]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, pencil, size, hintsLeft]);
 
-  // Check board
-  const handleCheck = () => {
-    const copy = cloneBoard(board);
-    const res = validateFullBoard(copy, size);
-    setMessage(res.message);
-    if (res.ok) {
-      // solved correctly => stop timer and store best time if applicable
-      setRunning(false);
-      const prevBest = localStorage.getItem(bestKey(level));
-      if (!prevBest || Number(prevBest) > time) {
-        localStorage.setItem(bestKey(level), String(time));
-        setBestTime(time);
-        setMessage(`Solved correctly! 🎉 Time: ${formatTime(time)} (New best)`);
-      } else {
-        setMessage(`Solved correctly! 🎉 Time: ${formatTime(time)}`);
-      }
-    }
-  };
-
-  // Solve board (fill whole board)
-  const handleSolve = () => {
-    const copy = cloneBoard(board);
-    const ok = solveBoard(copy, size);
-    if (ok) {
-      setBoard(copy);
-      setRunning(false);
-      setMessage(`Solved in ${formatTime(time)}!`);
-      // register best time maybe not since solved with help; we won't register best on Solve
-    } else {
-      setMessage("No solution exists for current board.");
-    }
-  };
-
-  // Hint: fill first empty with solved board value
-  const handleHint = () => {
-    // check solvability
-    const solved = cloneBoard(board);
-    const solvable = solveBoard(cloneBoard(board), size);
-    if (!solvable) {
-      setMessage("No solution available from current state.");
+  // Notes (max 2 cells)
+  function toggleNote(r, c, n) {
+    if (!isEditable(r, c) || board[r][c] !== 0) {
+      setMessage("Notes only on empty editable cells.");
       return;
     }
-    solveBoard(solved, size);
+    const k = keyOf(r, c);
+    const map = new Map(notes);
+    let set = map.get(k);
+    if (!set) {
+      if (notedCells.size >= 2 && !notedCells.has(k)) {
+        setMessage("You can keep notes in at most two cells at a time.");
+        return;
+      }
+      set = new Set();
+    }
+    if (set.has(n)) set.delete(n);
+    else set.add(n);
+
+    if (set.size === 0) {
+      map.delete(k);
+      const nc = new Set(notedCells);
+      nc.delete(k);
+      setNotedCells(nc);
+    } else {
+      map.set(k, set);
+      const nc = new Set(notedCells);
+      nc.add(k);
+      setNotedCells(nc);
+    }
+    setNotes(map);
+  }
+  function clearNotes(r, c) {
+    const k = keyOf(r, c);
+    if (!notes.has(k)) return;
+    const map = new Map(notes);
+    map.delete(k);
+    setNotes(map);
+    const nc = new Set(notedCells);
+    nc.delete(k);
+    setNotedCells(nc);
+  }
+
+  // Placement & scoring
+  function enterNumber(r, c, n) {
+    if (!isEditable(r, c)) {
+      setMessage("Cell is prefilled.");
+      return;
+    }
+    const newB = clone(board);
+
+    if (n === 0) {
+      newB[r][c] = 0;
+      setBoard(newB);
+      clearNotes(r, c);
+      setMessage("Cleared.");
+      return;
+    }
+
+    const correct = solved?.[r]?.[c] ?? null;
+    const moveSec = Math.max(1, Math.floor((Date.now() - lastMoveRef.current) / 1000));
+    lastMoveRef.current = Date.now();
+
+    if (correct && n !== correct) {
+      if (!practice) {
+        const m = mistakes + 1;
+        setMistakes(m);
+        setMessage(`Incorrect • Mistakes ${m}/${cfg.mistakes}`);
+        if (m >= cfg.mistakes && !submittedRef.current) {
+          setRunning(false);
+          setLastOutcome("gameover");
+          setShowDiffModal(true); // show dialog to start again
+          autoSubmitScore("gameover");
+        }
+      } else {
+        setMistakes((m) => m + 1); // unlimited in practice
+        setMessage(`Incorrect (practice)`);
+      }
+      return;
+    }
+
+    // Commit
+    newB[r][c] = n;
+    clearNotes(r, c);
+    setBoard(newB);
+    setMessage("Good!");
+
+    // Scoring
+    const base = size === 4 ? 60 : 100;
+    const penalty = Math.floor(moveSec / 2);
+    const gained = Math.max(5, Math.round((base - penalty) * cfg.mult));
+    let bonus = 0;
+    if (unitCompleted(newB, r, c)) bonus += 40;
+    setScore((s) => s + gained + bonus);
+
+    // Solved
+    if (isBoardSolved(newB)) {
+      setRunning(false);
+      setMessage(`Solved • Time ${fmtTime(time)} • +${gained + bonus}`);
+      autoSubmitScore("solved");
+    }
+  }
+
+  function unitCompleted(b, r, c) {
+    let comp = false;
+    if (!unitMemo.current.rows.has(r) && b[r].every((v) => v !== 0)) {
+      unitMemo.current.rows.add(r);
+      comp = true;
+    }
+    let colDone = true;
+    for (let i = 0; i < size; i++) if (b[i][c] === 0) colDone = false;
+    if (colDone && !unitMemo.current.cols.has(c)) {
+      unitMemo.current.cols.add(c);
+      comp = true;
+    }
+    const { br, bc } = dims(size);
+    const sr = Math.floor(r / br) * br;
+    const sc = Math.floor(c / bc) * bc;
+    let boxDone = true;
+    for (let i = sr; i < sr + br; i++) {
+      for (let j = sc; j < sc + bc; j++) if (b[i][j] === 0) boxDone = false;
+    }
+    const boxKey = `${Math.floor(r / br)}-${Math.floor(c / bc)}`;
+    if (boxDone && !unitMemo.current.boxes.has(boxKey)) {
+      unitMemo.current.boxes.add(boxKey);
+      comp = true;
+    }
+    return comp;
+  }
+
+  function isBoardSolved(b) {
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (b[r][c] === 0) return false;
+    const check = clone(b);
     for (let r = 0; r < size; r++) {
       for (let c = 0; c < size; c++) {
-        if (board[r][c] === 0) {
-          const newB = cloneBoard(board);
-          newB[r][c] = solved[r][c];
-          setBoard(newB);
-          setMessage(`Hint applied at row ${r + 1}, col ${c + 1}`);
-          return;
+        const v = check[r][c];
+        check[r][c] = 0;
+        if (!isValidPlacement(check, r, c, v, size)) return false;
+        check[r][c] = v;
+      }
+    }
+    return true;
+  }
+
+  // Hints — random cell only, never the selected cell
+  function useHint() {
+    if (!solved) return;
+    if (!practice && hintsLeft <= 0) {
+      setMessage("No hints left.");
+      return;
+    }
+
+    // build list of empty, editable cells
+    const empties = [];
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (isEditable(r, c) && board[r][c] === 0) {
+          empties.push([r, c]);
         }
       }
     }
-    setMessage("No empty cells to hint.");
-  };
+    if (empties.length === 0) {
+      setMessage("No empty cells for hint.");
+      return;
+    }
 
-  // Reset puzzle
-  const handleReset = () => {
-    setBoard(cloneBoard(initial));
-    setSelected({ r: -1, c: -1 });
-    setMessage("");
-    setTime(0);
-    setRunning(true);
-  };
+    // Exclude selected cell explicitly from hint targets
+    const filtered = empties.filter(([r, c]) => !(r === selected.r && c === selected.c));
 
-  // When user switches level via top buttons
-  const handleLevelClick = (lv) => {
-    if (lv === level) return;
-    loadLevel(lv);
-  };
+    if (filtered.length === 0) {
+      setMessage("Hint cannot be placed in the selected cell. Pick another cell or continue.");
+      return;
+    }
 
-  // When puzzle gets solved by filling all cells correctly auto-detect
+    const [rr, cc] = filtered[randint(filtered.length)];
+    enterNumber(rr, cc, solved[rr][cc]);
+    if (!practice) setHintsLeft((h) => Math.max(0, h - 1));
+    setMessage(`Hint filled at row ${rr + 1}, col ${cc + 1}.`);
+  }
+
+  // Auto-submit score (also used for exit/visibility/unmount). Skips practice.
+  async function autoSubmitScore(outcome) {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+
+    if (practice) return; // practice scores are not sent to leaderboard
+
+    const timeFactor = Math.floor(time / 3);
+    const outcomeBonus = outcome === "solved" ? 150 : 0;
+    const points = Math.max(10, Math.round(score * DIFFICULTIES[difficulty].mult - timeFactor + outcomeBonus));
+    try {
+      await authFetch("/student/leaderboard/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "game",
+          ref: `sudoku-${DIFFICULTIES[difficulty].ref}`,
+          points,
+          meta: { difficulty, time, score, outcome, practice },
+        }),
+      });
+      setMessage((m) => (m ? `${m} • Score submitted` : "Score submitted"));
+    } catch {
+      // ignore
+    }
+  }
+
+  // Auto-submit when leaving: visibility/pagehide/beforeunload + unmount cleanup
   useEffect(() => {
-    // if no zeros and no conflicts -> treat as solved
-    const hasZero = board.some((row) => row.some((v) => v === 0));
-    if (!hasZero && conflicts.size === 0) {
-      // validate fully to be safe
-      const res = validateFullBoard(cloneBoard(board), size);
-      if (res.ok) {
-        setRunning(false);
-        const prevBest = localStorage.getItem(bestKey(level));
-        if (!prevBest || Number(prevBest) > time) {
-          localStorage.setItem(bestKey(level), String(time));
-          setBestTime(time);
-          setMessage(`Solved! 🎉 Time: ${formatTime(time)} (New best)`);
-        } else {
-          setMessage(`Solved! 🎉 Time: ${formatTime(time)}`);
-        }
+    function submitIfNeeded(reason) {
+      if (!submittedRef.current && running && size && !practice) {
+        autoSubmitScore(reason);
       }
     }
+    const onBeforeUnload = () => submitIfNeeded("exit");
+    const onPageHide = () => submitIfNeeded("exit");
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") submitIfNeeded("exit");
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      // SPA unmount (route change)
+      submitIfNeeded("exit");
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board, conflicts]);
+  }, [running, size, practice, score, time, difficulty]);
 
-  // Render helpers
-  const cellClass = (r, c) => {
-    const base = `flex items-center justify-center select-none`;
-    const cellSize = size <= 4 ? "w-12 h-12 text-xl" : "w-10 h-10 text-lg";
-    const isFixed = initial[r][c] !== 0;
-    const isSelected = selected.r === r && selected.c === c;
-    const isConflict = conflicts.has(`${r},${c}`);
-    const { br, bc } = getBoxDims(size);
-    const topBorder = r % br === 0 ? "border-t-2" : "border-t";
-    const leftBorder = c % bc === 0 ? "border-l-2" : "border-l";
+  // Reset this puzzle
+  function resetBoard() {
+    if (!size) return;
+    setBoard(clone(initial));
+    setSelected({ r: -1, c: -1 });
+    setPencil(false);
+    setNotes(new Map());
+    setNotedCells(new Set());
+    setHintsLeft(DIFFICULTIES[difficulty].hints);
+    setMistakes(0);
+    setScore(0);
+    setTime(0);
+    setMessage("");
+    setRunning(true);
+    submittedRef.current = false;
+    unitMemo.current = { rows: new Set(), cols: new Set(), boxes: new Set() };
+    lastMoveRef.current = Date.now();
+    setLastOutcome(null);
+  }
+
+  const isEditable = (r, c) => initial?.[r]?.[c] === 0;
+  const showNotes = (r, c) => {
+    const set = notes.get(keyOf(r, c));
+    return set ? Array.from(set).sort((a, b) => a - b) : [];
+  };
+
+  // Cell styles with CLEAR border highlight for selected cell
+  const { br, bc } = useMemo(() => dims(size || 9), [size]);
+  const cellCls = (r, c) => {
+    const sel = selected.r === r && selected.c === c;
+    const sameRow = selected.r === r;
+    const sameCol = selected.c === c;
+    const fixed = !isEditable(r, c);
+    const topB = r % br === 0 ? "border-t-2" : "border-t";
+    const leftB = c % bc === 0 ? "border-l-2" : "border-l";
     return [
-      base,
-      cellSize,
-      isFixed ? "font-semibold text-gray-800" : "text-gray-700",
-      isSelected ? "bg-blue-100" : "bg-white",
-      isConflict ? "bg-red-100" : "",
-      topBorder,
-      leftBorder,
+      "relative flex items-center justify-center select-none transition-colors",
+      size === 4 ? "w-16 h-16 text-2xl" : "w-12 h-12 text-xl",
       "border-r border-b border-gray-300",
+      topB,
+      leftB,
+      fixed ? "bg-gray-50 font-semibold text-gray-900" : "bg-white text-gray-800 hover:bg-gray-50",
+      sel
+        ? "ring-2 ring-blue-600 ring-offset-1 ring-offset-white z-10"
+        : (sameRow || sameCol)
+        ? "bg-blue-50/40"
+        : "",
       "cursor-pointer",
     ].join(" ");
   };
 
-  // number pad entries (1..size)
-  const numberPad = Array.from({ length: size }, (_, i) => i + 1);
+  const keypad = Array.from({ length: size || 0 }, (_, i) => i + 1);
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-6 bg-gradient-to-r from-cyan-50 to-emerald-50">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg p-6">
-        {/* Header: title + level selector + timer + best time */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-teal-700">Sudoku — Circuit of Logic</h2>
-            <p className="text-sm text-gray-500">Choose a level; higher levels are harder.</p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Title */}
+      <div className="max-w-6xl mx-auto px-4 pt-6">
+        <h1 className="text-2xl font-bold text-gray-900">Sudoku</h1>
+        <p className="text-sm text-gray-600">Random puzzle • Practice mode option • Auto-submit (non-practice)</p>
+      </div>
 
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            {/* Level buttons */}
-            <div className="flex gap-2 items-center">
-              { [1,2,3,4,5].map((lv) => (
-                <button
-                  key={lv}
-                  onClick={() => handleLevelClick(lv)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
-                    lv === level ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {lv}
-                </button>
-              )) }
-            </div>
-
-            {/* Timer & best */}
-            <div className="ml-2 flex items-center gap-4">
-              <div className="text-lg font-semibold text-gray-700">⏱ {formatTime(time)}</div>
-              <div className="text-sm text-gray-500">
-                Best: {bestTime != null ? formatTime(bestTime) : "—"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Body: board + controls */}
-        <div className="flex gap-6">
-          {/* Board */}
-          <div>
-            <div
-              className={`grid`}
-              style={{
-                gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`,
-                width: size <= 4 ? 4 * 48 + "px" : 9 * 40 + "px",
-              }}
-            >
-              {board.map((row, r) =>
-                row.map((val, c) => (
+      {/* Two-column: Board left, Features right */}
+      <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left: Board */}
+        <div className="bg-white border rounded-xl shadow-sm p-4">
+          {/* Board grid */}
+          <div
+            className="grid mx-auto"
+            style={{
+              gridTemplateColumns: `repeat(${size || 9}, minmax(0,1fr))`,
+              width: size ? (size === 4 ? 4 * 64 + "px" : 9 * 48 + "px") : "auto",
+            }}
+          >
+            {board.map((row, r) =>
+              row.map((val, c) => {
+                const dots = showNotes(r, c);
+                return (
                   <div
                     key={`${r}-${c}`}
-                    onClick={() => handleSelect(r, c)}
-                    className={cellClass(r, c)}
-                    title={initial[r][c] !== 0 ? "Prefilled" : "Editable"}
+                    className={cellCls(r, c)}
+                    onClick={() => setSelected({ r, c })}
+                    title={isEditable(r, c) ? "Editable" : "Prefilled"}
                   >
-                    {val !== 0 ? val : ""}
+                    {val !== 0 ? (
+                      <span>{val}</span>
+                    ) : dots.length ? (
+                      <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 p-0.5 text-[10px] text-gray-500">
+                        {Array.from({ length: size }, (_, i) => i + 1).map((n) => (
+                          <div key={n} className="flex items-center justify-center">
+                            {dots.includes(n) ? n : ""}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      ""
+                    )}
                   </div>
-                ))
-              )}
-            </div>
+                );
+              })
+            )}
+          </div>
 
-            {/* Number pad */}
-            <div className={`mt-4 grid`} style={{ gridTemplateColumns: `repeat(${Math.min(size,9)}, minmax(0,1fr))`, gap: "8px" }}>
-              {numberPad.map((n) => (
+          {/* Keypad numbers */}
+          {!!size && (
+            <div
+              className="mt-4 grid mx-auto"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(size, 9)}, minmax(0,1fr))`,
+                gap: "8px",
+                width: size === 4 ? 4 * 64 + "px" : 9 * 48 + "px",
+              }}
+            >
+              {keypad.map((n) => (
                 <button
                   key={n}
-                  onClick={() => enterNumber(n)}
-                  className="px-2 py-2 bg-slate-100 hover:bg-slate-200 rounded-md"
+                  onClick={() => {
+                    if (selected.r >= 0) {
+                      pencil ? toggleNote(selected.r, selected.c, n) : enterNumber(selected.r, selected.c, n);
+                    }
+                  }}
+                  className={`inline-flex items-center justify-center gap-1 px-2 py-2 rounded-md transition ${
+                    pencil
+                      ? "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }`}
                 >
+                  {pencil && <Pencil className="w-4 h-4" />}
                   {n}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Fixed controls: Erase, Hint, Reset (below the board) */}
+          <div
+            className="mt-3 flex items-center justify-center gap-3 mx-auto"
+            style={{ width: size ? (size === 4 ? 4 * 64 + "px" : 9 * 48 + "px") : "auto" }}
+          >
+            <button
+              onClick={() => {
+                if (selected.r >= 0) {
+                  pencil ? clearNotes(selected.r, selected.c) : enterNumber(selected.r, selected.c, 0);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-white border hover:bg-gray-50 text-sm"
+              title="Erase"
+              aria-label="Erase"
+            >
+              <Eraser className="w-4 h-4 text-gray-700" />
+              Erase
+            </button>
+            <button
+              onClick={useHint}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-sm"
+              title="Hint"
+              aria-label="Hint"
+            >
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              Hint
+            </button>
+            <button
+              onClick={resetBoard}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-white border hover:bg-gray-50 text-sm"
+              title="Reset puzzle"
+              aria-label="Reset puzzle"
+            >
+              <RotateCcw className="w-4 h-4 text-gray-700" />
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Right: Features / Stats */}
+        <div className="space-y-4">
+          <div className="bg-white border rounded-xl shadow-sm p-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="px-3 py-2 rounded-md bg-gray-50 border text-gray-700 inline-flex items-center gap-2">
+                <Gauge className="w-4 h-4 text-gray-600" />
+                Difficulty: <span className="font-semibold">{difficulty}</span>
+              </div>
+              <div className="px-3 py-2 rounded-md bg-gray-50 border text-gray-700 inline-flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-600" />
+                {fmtTime(time)} {practice && <span className="inline-flex items-center gap-1 text-xs text-gray-500"><InfinityIcon className="w-3 h-3" />practice</span>}
+              </div>
+              <div className="px-3 py-2 rounded-md bg-gray-50 border text-gray-700 inline-flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                Hints: <span className="font-semibold text-blue-700">{practice ? "∞" : hintsLeft}</span>
+              </div>
+              <div className="px-3 py-2 rounded-md bg-gray-50 border text-gray-700 inline-flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                Mistakes:{" "}
+                <span className={`font-semibold ${mistakes ? "text-red-600" : "text-gray-800"}`}>
+                  {mistakes}{!practice && `/${DIFFICULTIES[difficulty].mistakes}`}
+                </span>
+              </div>
+              <div className="px-3 py-2 rounded-md bg-gray-50 border text-gray-700 col-span-2 inline-flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-yellow-600" />
+                Score: <span className="font-semibold text-blue-700">{score}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
-                onClick={() => enterNumber(0)}
-                className="col-span-3 px-2 py-2 bg-red-100 hover:bg-red-200 rounded-md"
+                onClick={() => setPencil((v) => !v)}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition ${
+                  pencil ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-gray-50"
+                }`}
+                title="Toggle Pencil mode (P)"
+                disabled={!size}
               >
-                Clear
+                <Pencil className="w-4 h-4" />
+                {pencil ? "Pencil: ON" : "Pencil: OFF"}
+              </button>
+
+              <button
+                onClick={() => navigate("/student/games")}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-50"
+                title="Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
               </button>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="w-64">
-            <div className="mb-4 p-3 border rounded-md">
-              <div className="text-sm text-gray-600">Selected</div>
+          {/* Selected cell — professional card */}
+          <div className="bg-white border rounded-xl shadow-sm">
+            <div className="px-4 py-3 border-b">
+              <div className="flex items-center gap-2 text-gray-900 font-semibold">
+                <Grid3x3 className="w-4 h-4 text-blue-600" />
+                Selected cell
+              </div>
+            </div>
+            <div className="p-4">
               {selected.r >= 0 ? (
-                <div className="mt-2">
-                  <div className="font-semibold">Row: {selected.r + 1}</div>
-                  <div className="font-semibold">Col: {selected.c + 1}</div>
-                  <div className="mt-2">Value: {board[selected.r][selected.c] || "—"}</div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    {initial[selected.r][selected.c] !== 0 ? "Prefilled — not editable" : "Editable"}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Grid3x3 className="w-4 h-4 text-gray-600" />
+                    <span className="text-gray-500">Position</span>
+                    <span className="ml-auto font-medium text-gray-900">
+                      R{selected.r + 1} • C{selected.c + 1}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-gray-600" />
+                    <span className="text-gray-500">Value</span>
+                    <span className="ml-auto font-medium text-gray-900">
+                      {board[selected.r][selected.c] || "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 col-span-2">
+                    {isEditable(selected.r, selected.c) ? (
+                      <>
+                        <Edit3 className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-500">Status</span>
+                        <span className="ml-auto font-medium text-green-700">Editable</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 text-gray-600" />
+                        <span className="text-gray-500">Status</span>
+                        <span className="ml-auto font-medium text-gray-700">Prefilled</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-gray-500 mb-1 flex items-center gap-2">
+                      <Pencil className="w-4 h-4 text-gray-600" />
+                      Notes
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {showNotes(selected.r, selected.c).length ? (
+                        showNotes(selected.r, selected.c).map((n) => (
+                          <span
+                            key={n}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200"
+                          >
+                            {n}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-400">No notes</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="mt-2 text-gray-500">Click a cell to select</div>
+                <div className="text-sm text-gray-500">Click a cell on the board to view details.</div>
               )}
             </div>
+          </div>
 
-            <div className="mb-4 p-3 border rounded-md min-h-[96px]">
-              <div className="text-sm text-gray-600">Message</div>
-              <div className="mt-2 font-medium text-gray-800">{message || "Status updates appear here."}</div>
+          <div className="bg-white border rounded-xl shadow-sm p-4 text-sm">
+            <div className="font-semibold text-gray-900">Rules & tips</div>
+            <ul className="list-disc list-inside mt-2 text-gray-600 space-y-1">
+              <li>Hints fill a random empty cell, never the one you selected.</li>
+              <li>Practice mode: unlimited hints, mistakes, and time; score is not submitted.</li>
+              <li>Pencil mode: candidate numbers allowed in up to two cells at once.</li>
+              <li>Non-practice: limited hints and mistakes; reaching the mistakes cap ends the game and reopens difficulty dialog.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Difficulty + Practice modal */}
+      {showDiffModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <div className="text-xl font-semibold text-gray-900">Start Sudoku</div>
+            {lastOutcome === "gameover" && (
+              <div className="mt-2 text-sm font-medium text-red-600">
+                Game over — too many mistakes. Choose difficulty to start again.
+              </div>
+            )}
+            <div className="text-sm text-gray-600 mt-1">Choose difficulty and mode. A new random puzzle will be generated.</div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {DIFF_KEYS.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setDifficulty(k)}
+                  className={`px-3 py-2 rounded-md border text-sm transition ${
+                    difficulty === k ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-gray-50"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={handleHint}
-                  className="flex-1 px-3 py-2 bg-yellow-400 hover:bg-yellow-500 rounded-md text-sm"
-                >
-                  Hint
-                </button>
-                <button
-                  onClick={handleCheck}
-                  className="flex-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-md text-sm text-white"
-                >
-                  Check
-                </button>
-              </div>
+            <label className="mt-4 inline-flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="accent-blue-600"
+                checked={practice}
+                onChange={(e) => setPractice(e.target.checked)}
+              />
+              Practice mode (unlimited hints/mistakes/time; score not submitted)
+            </label>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSolve}
-                  className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 rounded-md text-sm text-white"
-                >
-                  Solve
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="flex-1 px-3 py-2 bg-gray-300 hover:bg-gray-400 rounded-md text-sm"
-                >
-                  Reset
-                </button>
-              </div>
+            <div className="mt-3 text-xs text-gray-600">
+              Hints: {DIFFICULTIES[difficulty].hints} • Mistakes: {DIFFICULTIES[difficulty].mistakes} (non-practice)
+            </div>
 
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => navigate("/student/games")}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-md border bg-white hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Cancel
+              </button>
               <button
                 onClick={() => {
-                  setRunning(false);
-                  navigate("/student/games");
-                  
+                  setShowDiffModal(false);
+                  startGame(difficulty, practice);
                 }}
-                className="px-4 py-2 bg-gray-400 hover:bg-gray-500 rounded-md text-white"
+                className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
               >
-                ⬅ Back
+                Start
               </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

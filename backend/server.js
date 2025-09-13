@@ -11,7 +11,8 @@ import authRoutes from './src/controller/auth.js';
 import teacherRoutes from './src/controller/teacher.js';
 import profileRoutes from './src/controller/profile.js';
 import blogRoutes from './src/controller/blogs.js';
-import quizRoutes from './src/controller/quizzes.js'; // NEW: quizzes router
+import quizRoutes from './src/controller/quizzes.js';
+import leaderboardRoutes from './src/controller/leaderboard.js'; // NEW
 
 // Models (for seeding)
 import User from './src/models/User.js';
@@ -19,7 +20,7 @@ import User from './src/models/User.js';
 // Optional: verify SMTP on boot (non-fatal)
 import { verifyEmailTransport } from './src/lib/mailer.js';
 
-// Env vars with defaults for dev
+// Env vars
 const PORT = Number(process.env.PORT || 5000);
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/userManagementDB';
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -28,51 +29,36 @@ const FRONTEND_URLS = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .map(s => s.trim())
   .filter(Boolean);
 
-// Dev flags
-const DISABLE_AUTH = String(process.env.DISABLE_AUTH || 'false').toLowerCase() === 'true';
-const EMAIL_TX_ROLLBACK = String(process.env.EMAIL_TX_ROLLBACK || 'false').toLowerCase() === 'true';
-
-// App
 const app = express();
 
-// CORS (allow your frontend; be permissive in non-production)
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (NODE_ENV !== 'production') return callback(null, true);
-      if (FRONTEND_URLS.includes(origin)) return callback(null, true);
-      return callback(new Error('CORS not allowed'), false);
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (NODE_ENV !== 'production') return cb(null, true);
+      if (FRONTEND_URLS.includes(origin)) return cb(null, true);
+      return cb(new Error('CORS not allowed'), false);
     },
     credentials: false,
   })
 );
 
-// Logger
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ limit: '2mb' }));
 
-// Body parsing
-app.use(express.json({ limit: '2mb' })); // raised slightly for blog/quiz payloads
-
-// Health check
 app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    env: NODE_ENV,
-    time: new Date().toISOString(),
-    flags: { DISABLE_AUTH, EMAIL_TX_ROLLBACK },
-  });
+  res.json({ ok: true, env: NODE_ENV, time: new Date().toISOString() });
 });
 
-// Routes
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/teacher', teacherRoutes);
 app.use('/profile', profileRoutes);
-app.use('/', blogRoutes);   // exposes /teacher/blogs and /student/blogs
-app.use('/', quizRoutes);   // NEW: exposes /teacher/quizzes and /student/quizzes
+app.use('/', blogRoutes);
+app.use('/', quizRoutes);
+app.use('/', leaderboardRoutes); // NEW
 
-// 404 handler (keep AFTER all routes)
+// 404
 app.use((req, res, next) => {
   if (res.headersSent) return next();
   res.status(404).json({ error: 'Not found' });
@@ -95,18 +81,10 @@ async function seedAdmin() {
   const existing = await User.findOne({ role: 'admin', email: adminEmail });
   if (!existing) {
     const passwordHash = await bcrypt.hash(adminPassword, 10);
-    await User.create({
-      name: adminName,
-      email: adminEmail,
-      passwordHash,
-      role: 'admin',
-    });
-    console.log('🔐 Seeded admin account');
-    console.log(`   email: ${adminEmail}`);
-    console.log(`   password: ${adminPassword}`);
-    console.log('   NOTE: Change via ADMIN_EMAIL/ADMIN_PASSWORD env in production.');
+    await User.create({ name: adminName, email: adminEmail, passwordHash, role: 'admin' });
+    console.log('🔐 Seeded admin', adminEmail);
   } else {
-    console.log('🔐 Admin account exists:', adminEmail);
+    console.log('🔐 Admin exists:', adminEmail);
   }
 }
 
@@ -114,13 +92,9 @@ async function start() {
   try {
     await mongoose.connect(MONGO_URI, { dbName: MONGO_URI.split('/').pop() });
     console.log('✅ MongoDB connected');
-
     verifyEmailTransport?.().catch(() => {});
     await seedAdmin();
-
-    server = app.listen(PORT, () => {
-      console.log(`🚀 API running on http://localhost:${PORT}`);
-    });
+    server = app.listen(PORT, () => console.log(`🚀 API on http://localhost:${PORT}`));
   } catch (e) {
     console.error('❌ Failed to start server:', e);
     process.exit(1);
@@ -130,7 +104,6 @@ start();
 
 async function shutdown(code = 0) {
   try {
-    console.log(' Shutting down...');
     if (server) await new Promise((r) => server.close(r));
     await mongoose.connection.close();
   } finally {
@@ -140,8 +113,3 @@ async function shutdown(code = 0) {
 
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
-process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  shutdown(1);
-});

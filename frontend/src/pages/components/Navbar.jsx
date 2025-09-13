@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings as SettingsIcon, LogOut, BookOpenText, ListChecks } from 'lucide-react';
+import { Menu, X, User, Settings as SettingsIcon, LogOut, BookOpenText, ListChecks, Trophy } from 'lucide-react';
 import { clearToken } from '../../utils/auth';
 
 const Navbar = ({ user }) => {
@@ -47,11 +47,13 @@ const Navbar = ({ user }) => {
       { name: 'Students', to: '/teacher/student-management' },
       { name: 'Blogs', to: '/teacher/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
       { name: 'Quizzes', to: '/teacher/quizzes', icon: <ListChecks className="w-3.5 h-3.5" /> },
+      { name: 'Leaderboards', to: '/teacher/leaderboards', icon: <Trophy className="w-3.5 h-3.5" /> }, // Link to teacher leaderboards page
     ],
     student: [
       { name: 'Dashboard', to: '/student' },
       { name: 'Blogs', to: '/student/blogs', icon: <BookOpenText className="w-3.5 h-3.5" /> },
       { name: 'Quizzes', to: '/student/quizzes', icon: <ListChecks className="w-3.5 h-3.5" /> },
+      { name: 'Leaderboards', to: '/student/leaderboards', icon: <Trophy className="w-3.5 h-3.5" /> }, // NEW: student leaderboards page
     ],
   };
   const navItems = navigationByRole[user.role] || navigationByRole.student;
@@ -108,7 +110,7 @@ const Navbar = ({ user }) => {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
-            {/* Profile dropdown (desktop) */}
+            {/* Profile (desktop) */}
             <div className="relative hidden md:block">
               <button
                 onClick={() => setIsProfileOpen((v) => !v)}
@@ -187,7 +189,7 @@ const Navbar = ({ user }) => {
             {/* Mobile profile header */}
             <div className="flex items-center gap-3 px-2 pb-3 mb-2 border-b border-gray-100">
               <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-                {getUserInitial()}
+                {user?.name?.[0]?.toUpperCase() || 'U'}
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-gray-900 truncate">{user.name}</div>
@@ -197,7 +199,7 @@ const Navbar = ({ user }) => {
 
             {/* Mobile links */}
             <div className="flex flex-col">
-              {navItems.map((item) => (
+              {navigationByRole[user.role].map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.to}
@@ -229,7 +231,7 @@ const Navbar = ({ user }) => {
                 </button>
                 <button
                   onClick={() => {
-                    navigate(settingsPath);
+                    navigate('/settings');
                     setIsMenuOpen(false);
                   }}
                   className="w-full text-left px-2 py-2 text-base text-gray-700 hover:text-blue-700 hover:bg-blue-50"

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authFetch } from "@/utils/auth";
 
 const WordQuest = () => {
   const navigate = useNavigate();
+  const refKey = "wordquest";
 
   const questions = [
     { word: "CAT", jumbled: "TAC" },
@@ -16,13 +18,16 @@ const WordQuest = () => {
   const [answer, setAnswer] = useState("");
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const total = questions.length;
 
   const checkAnswer = () => {
     if (answer.trim().toUpperCase() === questions[currentQ].word) {
-      setScore(score + 1);
+      setScore((s) => s + 1);
     }
-    if (currentQ + 1 < questions.length) {
-      setCurrentQ(currentQ + 1);
+    if (currentQ + 1 < total) {
+      setCurrentQ((n) => n + 1);
       setAnswer("");
     } else {
       setGameOver(true);
@@ -34,61 +39,72 @@ const WordQuest = () => {
     setAnswer("");
     setScore(0);
     setGameOver(false);
+    setSaved(false);
   };
 
+  const points = score * 100;
+
+  async function submitScore() {
+    setSaved(false);
+    try {
+      await authFetch('/student/leaderboard/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'game', ref: refKey, points, meta: { score, total } }),
+      });
+      setSaved(true);
+    } catch {
+      setSaved(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-green-100 to-blue-100 p-6">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-        <h2 className="text-2xl font-bold text-green-700 mb-6">Word Quest</h2>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <div className="rounded-2xl border bg-white shadow-sm p-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">WordQuest</h2>
+          <p className="text-sm text-gray-600 mb-6">Unscramble words • Blue/Gray</p>
 
-        {!gameOver ? (
-          <>
-            <p className="text-lg font-medium text-gray-700 mb-4">
-              Unscramble this word:
-            </p>
-            <h3 className="text-3xl font-extrabold text-blue-600 mb-6">
-              {questions[currentQ].jumbled}
-            </h3>
+          {!gameOver ? (
+            <>
+              <div className="text-sm text-gray-600 mb-2">
+                Question {currentQ + 1} / {total} • Score <span className="font-semibold text-blue-700">{score}</span>
+              </div>
 
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Type your answer"
-              className="border rounded-lg px-4 py-2 mb-4 w-full text-center"
-            />
-            <button
-              onClick={checkAnswer}
-              className="px-6 py-2 bg-green-500 text-white rounded-xl shadow hover:bg-green-600 transition"
-            >
-              Submit
-            </button>
-          </>
-        ) : (
-          <>
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">
-              Game Over! 🎉
-            </h3>
-            <p className="text-lg mb-6">
-              Your Score: <span className="font-bold text-blue-600">{score}</span>{" "}
-              / {questions.length}
-            </p>
-            <button
-              onClick={resetGame}
-              className="px-6 py-2 bg-green-500 text-white rounded-xl shadow hover:bg-green-600 transition mb-4"
-            >
-              Play Again
-            </button>
-          </>
-        )}
+              <div className="text-3xl font-extrabold text-blue-700 tracking-widest mb-5">
+                {questions[currentQ].jumbled}
+              </div>
 
-        {/* Back Button */}
-        <button
-           onClick={() => navigate("/student/games")}
-          className="mt-4 px-5 py-2 bg-gray-400 text-white rounded-lg shadow hover:bg-gray-500 transition"
-        >
-          ⬅ Back
-        </button>
+              <input
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Type your answer"
+                className="w-full border border-gray-300 rounded-md px-4 py-2 mb-4 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={checkAnswer}
+                className="px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Submit
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Game Over 🎉</h3>
+              <p className="text-sm text-gray-700 mb-2">
+                Your Score: <span className="font-bold text-blue-700">{score}</span> / {total}
+              </p>
+              <div className="text-2xl font-bold text-blue-700 mb-3">{points} points</div>
+              <div className="flex justify-center gap-2">
+                <button onClick={resetGame} className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">Play Again</button>
+                <button onClick={() => navigate("/student/games")} className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Back</button>
+                <button onClick={submitScore} className="px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">Save Score</button>
+              </div>
+              {saved && <div className="mt-2 text-xs text-green-600">Score saved!</div>}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

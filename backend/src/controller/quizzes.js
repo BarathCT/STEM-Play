@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Quiz from '../models/Quiz.js';
 import QuizAttempt from '../models/QuizAttempt.js';
+import Leaderboard from '../models/Leaderboard.js';
 
 const router = express.Router();
 
@@ -72,7 +73,6 @@ router.get('/teacher/quizzes', requireTeacher, async (req, res) => {
 
 /**
  * TEACHER: Create quiz
- * Body: { title, questions:[{text,options[],correctIndex}], perQuestionSeconds, maxAttemptsPerStudent, published, sourceBlogId? }
  */
 router.post('/teacher/quizzes', requireTeacher, async (req, res) => {
   const { error, klass } = await getTeacherPrimaryClass(req.userId);
@@ -90,7 +90,6 @@ router.post('/teacher/quizzes', requireTeacher, async (req, res) => {
   if (!title || !Array.isArray(questions) || questions.length < 1) {
     return res.status(400).json({ error: 'title and at least 1 question are required' });
   }
-  // Validate questions
   for (const q of questions) {
     if (!q?.text || !Array.isArray(q?.options) || q.options.length < 2 || typeof q.correctIndex !== 'number') {
       return res.status(400).json({ error: 'Invalid question format' });
@@ -133,7 +132,6 @@ router.post('/teacher/quizzes', requireTeacher, async (req, res) => {
 
 /**
  * TEACHER: Update quiz
- * Any of: title, perQuestionSeconds, maxAttemptsPerStudent, published, questions
  */
 router.put('/teacher/quizzes/:id', requireTeacher, async (req, res) => {
   const { error, klass } = await getTeacherPrimaryClass(req.userId);
@@ -201,11 +199,14 @@ router.delete('/teacher/quizzes/:id', requireTeacher, async (req, res) => {
 
   await Quiz.deleteOne({ _id: found._id });
   await QuizAttempt.deleteMany({ quizId: found._id });
+  // It's fine to keep leaderboard entries; or you can delete them:
+  // await Leaderboard.deleteMany({ ref: `quiz:${found._id}` });
+
   res.json({ ok: true, message: `Deleted quiz "${found.title}"` });
 });
 
 /**
- * TEACHER: Leaderboard (best score per student)
+ * TEACHER: Leaderboard (existing quiz-based, still available)
  */
 router.get('/teacher/quizzes/:id/leaderboard', requireTeacher, async (req, res) => {
   const { error, klass } = await getTeacherPrimaryClass(req.userId);
@@ -253,7 +254,6 @@ router.get('/student/quizzes', requireStudent, async (req, res) => {
 
   const list = await Quiz.find({ classId: klass._id, published: true }).sort({ createdAt: -1 }).lean();
 
-  // Attempts summary for this student
   const summary = await QuizAttempt.aggregate([
     { $match: { studentId: mongoose.Types.ObjectId.createFromHexString(String(req.userId)) } },
     { $group: { _id: '$quizId', count: { $sum: 1 }, bestPoints: { $max: '$totalPoints' } } },
@@ -306,8 +306,7 @@ router.get('/student/quizzes/:id', requireStudent, async (req, res) => {
 });
 
 /**
- * STUDENT: Submit an attempt
- * Body: { answers: [{ questionIndex, selectedIndex, timeTakenSec }] }
+ * STUDENT: Submit an attempt (also updates Leaderboard bestPoints)
  */
 router.post('/student/quizzes/:id/attempt', requireStudent, async (req, res) => {
   const { error, klass } = await getStudentClass(req.userId);
@@ -359,6 +358,37 @@ router.post('/student/quizzes/:id/attempt', requireStudent, async (req, res) => 
     correctCount,
     totalPoints,
   });
+
+  // Upsert into Leaderboard (best score for this quiz)
+  const refKey = `quiz:${quiz._id}`;
+  const student = await User.findById(req.userId).select('assignedTeacherId').lean();
+  const teacherId = student?.assignedTeacherId || null;
+  const existing = await Leaderboard.findOne({ ref: refKey, studentId: req.userId }).lean();
+  if (!existing || totalPoints > (existing.bestPoints || 0)) {
+    if (!existing) {
+      await Leaderboard.create({
+        type: 'quiz',
+        ref: refKey,
+        classId: klass._id,
+        teacherId,
+        studentId: req.userId,
+        bestPoints: totalPoints,
+        bestMeta: { correctCount, total: quiz.questions.length },
+      });
+    } else {
+      await Leaderboard.updateOne(
+        { _id: existing._id },
+        {
+          $set: {
+            bestPoints: totalPoints,
+            bestMeta: { correctCount, total: quiz.questions.length },
+            classId: klass._id,
+            teacherId,
+          },
+        }
+      );
+    }
+  }
 
   res.json({
     ok: true,

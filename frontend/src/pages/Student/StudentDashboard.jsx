@@ -15,7 +15,6 @@ export default function StudentDashboard() {
         if (!alive) return;
         setUser(data.user);
       } catch {
-        // Auth failed -> clear token and redirect to login
         clearToken();
         navigate("/login");
       }
@@ -32,9 +31,8 @@ export default function StudentDashboard() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
-      {/* Quizzes */}
-      <section className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-blue-700 mb-3">Quizzes</h2>
+      <section className="bg-white rounded-xl shadow-sm border p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Quizzes</h2>
         <p className="text-sm text-gray-600">Your available quizzes will appear here.</p>
         <button
           onClick={() => navigate("/student/quizzes")}
@@ -44,13 +42,12 @@ export default function StudentDashboard() {
         </button>
       </section>
 
-      {/* Games */}
-      <section className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-bold text-green-700 mb-3">Games</h2>
-        <p className="text-sm text-gray-600">Play fun STEM-related educational games here.</p>
+      <section className="bg-white rounded-xl shadow-sm border p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Games</h2>
+        <p className="text-sm text-gray-600">Play fun classics in our blue-white-gray theme.</p>
         <Link
           to="/student/games"
-          className="inline-block mt-4 px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+          className="inline-block mt-4 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           Play Games
         </Link>

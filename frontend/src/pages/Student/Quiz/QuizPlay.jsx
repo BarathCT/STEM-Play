@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '@/utils/auth';
-import { Timer, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Timer, Loader2 } from 'lucide-react';
+import LeaderboardPanel from '../../components/LeaderboardPanel';
 
 export default function QuizPlay() {
   const { id } = useParams();
@@ -12,7 +13,7 @@ export default function QuizPlay() {
   const [quiz, setQuiz] = useState(null);
 
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState([]); // {questionIndex, selectedIndex, timeTakenSec}
+  const [answers, setAnswers] = useState([]);
   const [secLeft, setSecLeft] = useState(0);
   const timerRef = useRef(null);
 
@@ -53,7 +54,6 @@ export default function QuizPlay() {
       setSecLeft((s) => {
         if (s <= 1) {
           clearInterval(timerRef.current);
-          // auto move with no answer selected -> treat as wrong with full time used
           recordAnswer(null);
           return 0;
         }
@@ -75,7 +75,7 @@ export default function QuizPlay() {
     const timeTaken = (quiz?.perQuestionSeconds || 0) - secLeft;
     const entry = {
       questionIndex: idx,
-      selectedIndex: selectedIndex ?? -1, // -1 means no answer selected
+      selectedIndex: selectedIndex ?? -1,
       timeTakenSec: Math.max(0, timeTaken),
     };
     const next = [...answers, entry];
@@ -84,7 +84,6 @@ export default function QuizPlay() {
     if (nextIdx < (quiz?.questions?.length || 0)) {
       setIdx(nextIdx);
     } else {
-      // submit
       submit(next);
     }
   }
@@ -93,7 +92,6 @@ export default function QuizPlay() {
     setSubmitting(true);
     setErr('');
     try {
-      // normalize: server expects indexes valid; map -1 -> 999 so it's wrong
       const fixed = arr.map(a => ({
         questionIndex: a.questionIndex,
         selectedIndex: a.selectedIndex >= 0 ? a.selectedIndex : 999,
@@ -105,6 +103,7 @@ export default function QuizPlay() {
         body: JSON.stringify({ answers: fixed }),
       });
       setResult(res.attempt);
+      // Leaderboard is auto-updated server-side. No need to submit separately.
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -119,18 +118,20 @@ export default function QuizPlay() {
       <button className="px-4 py-2 border rounded" onClick={() => nav(-1)}>Back</button>
     </div>
   );
-
   if (!quiz) return null;
 
   if (result) {
     const totalQ = quiz.questions.length;
     return (
-      <div className="max-w-xl mx-auto px-4 py-6">
-        <div className="bg-white border rounded-lg p-5 text-center">
-          <div className="text-xl font-semibold mb-2">Quiz Finished</div>
-          <div className="text-sm text-gray-700 mb-4">{result.correctCount} / {totalQ} correct</div>
-          <div className="text-2xl font-bold text-emerald-700 mb-4">{result.totalPoints} points</div>
-          <button className="px-4 py-2 border rounded" onClick={() => nav('/student/quizzes')}>Back to quizzes</button>
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-white border rounded-lg p-5 text-center">
+            <div className="text-xl font-semibold mb-2">{quiz.title}</div>
+            <div className="text-sm text-gray-700 mb-1">{result.correctCount} / {totalQ} correct</div>
+            <div className="text-2xl font-bold text-blue-700 mb-4">{result.totalPoints} points</div>
+            <button className="px-4 py-2 border rounded" onClick={() => nav('/student/quizzes')}>Back to quizzes</button>
+          </div>
+          <LeaderboardPanel type="quiz" refKey={id} title="Class Leaderboard" />
         </div>
       </div>
     );
